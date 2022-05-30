@@ -1,4 +1,8 @@
+import os
 import os.path as osp
+import tensorflow as tf
+import numpy as np
+from tensorflow.python import pywrap_tensorflow
 
 
 def get_data_info(args):
@@ -40,7 +44,6 @@ def get_data_info(args):
 
     return data_info
 
-
 def get_model(args):
     if args.model == 'DNN':
         from model import DNN
@@ -49,3 +52,70 @@ def get_model(args):
         raise ValueError(f'can not find {args.model}')
 
     return model    
+
+def save(path, sess):
+    if not osp.exists(path):
+        os.makedirs(path)
+    saver = tf.train.Saver()
+    saver.save(sess, osp.join(path, 'model.ckpt'))
+
+def restore(path, sess):
+    path = osp.join(path, "model.ckpt")
+    reader = pywrap_tensorflow.NewCheckpointReader()
+    var_to_shape_map = reader.get_variable_to_shape_map()
+    variables = tf.global_variables()
+
+    var_to_restore = []
+    for var in variables:
+        if var.name.split(':')[0] in var_to_shape_map:
+            var_to_restore.append(var)
+    
+    saver = tf.train.Saver(var_list=var_to_restore)
+    saver.restore(sess,path)
+
+def get_DCG(scores):
+    return np.sum(
+        np.divide(np.power(2, scores) - 1, np.log2(np.arange(scores.shape[0], dtype=np.float32) + 2)),
+        dtype=np.float32)
+
+def get_NDCG(rank_list, pos_items):
+    pos_items_metrics = [x for x in pos_items if x in rank_list]
+    relevance = np.ones_like(pos_items_metrics, dtype=float)
+    it2rel = {it: r for it, r in zip(pos_items_metrics, relevance)}
+    rank_scores = np.asarray([it2rel.get(it, 0.0) for it in rank_list], dtype=np.float32)
+
+    idcg = get_NDCG(relevance)
+
+    dcg = get_NDCG(rank_scores)
+
+    if dcg == 0.0:
+        return 0.0
+
+    ndcg = dcg / idcg
+    return ndcg
+
+# def load_item_cate(source):
+#     item_cate = {}
+#     try:
+#         with open(source, 'r') as f:
+#             for line in f:
+#                 conts = line.strip().split(',')
+#                 item_id = int(conts[0])
+#                 cate_id = conts[1]
+#                 item_cate[item_id] = cate_id
+#     except Exception as e:
+#         raise ValueError("load item cate file failed: {}".format(e))
+#     return item_cate
+
+# def get_diversity(item_list, item_cate_map):
+#     n = len(item_list)
+#     try:
+#         diversity = 0.0
+#         for i in range(n):
+#             for j in range(i+1, n):
+#                 diversity += item_cate_map[item_list[i]] != item_cate_map[item_list[j]]
+#         diversity /= ((n-1) * n / 2)
+#     except:
+#         pass
+#     return diversity
+

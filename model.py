@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 def get_cos_similarity(x1, x2, dim_num=4, eye=True):
         #[num, dim]
@@ -57,10 +58,10 @@ class Model:
             self.user_ids = tf.placeholder(tf.int32, [None, ], name='user_ids')
             self.item_ids = tf.placeholder(tf.int32, [None, args.domain_num], name='item_ids')
             self.domain_labels = tf.placeholder(tf.int32, [None, args.domain_num], name='domain_labels')
-            self.fixed_len_target_ids = tf.placeholder(tf.int32, [None, args.domain_num, None], name='seq_targets')
+            # self.fixed_len_target_ids = tf.placeholder(tf.int32, [None, args.domain_num, None], name='seq_targets')
 
-            self.target_item_ids = tf.placeholder(tf.int32, [None, args.domain_num, self.max_len], name='target_item_ids')
-            self.target_item_masks = tf.placeholder(tf.int32, [None, args.domain_num, self.max_len], name='target_item_masks')
+            self.history_item_ids = tf.placeholder(tf.int32, [None, args.domain_num, self.max_len], name='history_item_ids')
+            self.history_item_masks = tf.placeholder(tf.int32, [None, args.domain_num, self.max_len], name='history_item_masks')
 
             self.lr = tf.placeholder(tf.float64, [])
             self.dropout_rate = tf.placeholder(tf.float32, [])
@@ -117,11 +118,15 @@ class Model:
     
     def sample_softmax_loss(self, x, y, mask):
         weight = tf.Variable(
-            # [self.] 
+            [self.embedding_num, self.embedding_dim],
+            trainable=True,
+            name='weight'
         )
 
         bias = tf.Variable(
-
+            [self.embedding_num],
+            initial_value=tf.zeros_initializer(),
+            trainable=True
         )
 
         loss = tf.nn.sampled_softmax_loss(
@@ -141,14 +146,13 @@ class Model:
             self.user_ids:inputs[0],
             self.item_ids:inputs[1],
             self.domain_labels:inputs[2],
-            self.fixed_len_target_ids:inputs[3],
 
-            self.target_item_ids:inputs[4],
-            self.target_item_masks:inputs[5],
+            self.history_item_ids:inputs[3],
+            self.history_item_masks:inputs[4],
 
-            self.lr:inputs[6],
-            self.dropout_rate:inputs[7],
-            self.batch_size:inputs[8]
+            self.lr:inputs[5],
+            self.dropout_rate:inputs[6],
+            self.batch_size:inputs[7]
         }
 
         loss, _ = sess.run(
@@ -282,7 +286,6 @@ class Model:
         return X
     
 
-
 class DNN(Model):
     def __init__(self, args, name='DNN'):
         super(DNN).__init__(args)
@@ -292,21 +295,34 @@ class DNN(Model):
     def create_forward_path(self, args, name='DNN'):
         with tf.variable_scope(name, tf.AUTO_REUSE):
             mask = tf.cast(tf.greater_equal(self.domain_num, 1), tf.float32)
-            mask_len = tf.cast(tf.reduce_sum(self.mask, -1), dtype=tf.int32)
             
             # get embedding
             item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.item_ids)
-            target_item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.target_item_ids)
+            histroy_item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.history_item_ids)
+            histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
+            histroy_item_embeddings *= tf.reshape(mask, (-1, self.domain_num, self.max_len, 1))
+
+            mask = tf.reshape(self.mask, [-1, self.domain_num * self.max_len])
+            histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.domain_num * self.max_len, self.embedding_dim])
+            masks = tf.concat([tf.expand_dims(mask, -1) for _ in range(self.embedding_dim)], axis=-1)
+            histroy_item_embeddings = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
 
             # use vqvae
             if args.vqvae:
-                item_embeddings = self.vqvae(item_embeddings, self.code_book)
+                histroy_item_embeddings = self.vqvae(histroy_item_embeddings, self.code_book)
 
             # get logtis
-            logtis = self.encoder(item_embeddings)
+            self.histroy_item_embeddings = self.encoder(histroy_item_embeddings)
 
             # get loss
-            loss = self.sample_softmax_loss(logtis, self.item_ids, mask=mask)
+            loss = self.sample_softmax_loss(self.histroy_item_embeddings, item_embeddings, mask=mask)
 
             return loss
+    
+    def get_history_embeddings(self, sess, feed_dict):
+        history_embeddings = sess.run(
+            [self.histroy_item_embeddings],
+            feed_dict=feed_dict
+        )
+        return history_embeddings
 

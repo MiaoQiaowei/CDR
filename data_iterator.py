@@ -64,9 +64,9 @@ class DataIterator:
         # 对具体的数据进行处理
         item_ids = []
         domain_labels = []
-        target_item_ids = []
-        target_item_mask = []
-        target_max_len = 0
+        history_item_ids = []
+        history_item_mask = []
+        history_max_len = 0
 
         for user_id in user_ids:
             items = self.graph[user_id]
@@ -89,17 +89,17 @@ class DataIterator:
                 item_ids.append(random.choice(single_domain_items[split]))
             
             if split < self.max_len: 
-                target_item_ids.append(single_domain_items[:split] + [0] * self.max_len-split)
-                target_item_mask.append(domain_labels * split +  [0] * self.max_len-split)
-                target_max_len = max(target_max_len, split)
+                history_item_ids.append(single_domain_items[:split] + [0] * self.max_len-split)
+                history_item_mask.append(domain_labels * split +  [0] * self.max_len-split)
+                history_max_len = max(history_max_len, split)
             else:
-                target_item_ids.append(single_domain_items[split-self.max_len :split])
-                target_item_mask.append(domain_labels * self.max_len)
-                target_max_len = max(target_max_len, self.max_len)
+                history_item_ids.append(single_domain_items[split-self.max_len :split])
+                history_item_mask.append(domain_labels * self.max_len)
+                history_max_len = max(history_max_len, self.max_len)
         
-        fixed_len_target_ids = [target_ids[:target_max_len] for target_ids in target_item_ids]
+        # fixed_len_target_ids = [target_ids[:target_max_len] for target_ids in target_item_ids]
 
-        return (user_ids, item_ids, domain_labels, fixed_len_target_ids), (target_item_ids, target_item_mask)
+        return (user_ids, item_ids, domain_labels), (history_item_ids, history_item_mask)
 
 
 

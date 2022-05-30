@@ -4,7 +4,25 @@ import datetime
 import urllib 
 import logging
 import sys
+import os.path as osp
 
+class AvgManager():
+    def __init__(self):
+        self.counter = 0
+        self.sum = 0.
+    
+    def add(self, x):
+        self.counter+=1
+        self.sum += x
+    
+    def avg(self):
+        if self.counter == 0:
+            raise ValueError(f'counter is {self.counter}')
+        return self.sum / self.counter
+
+    def clean(self):
+        self.counter = 0 
+        self.sum = 0.0
 
 class LogManager():
     def __init__(self, logger_name, path):
@@ -17,13 +35,15 @@ class LogManager():
         self.writer = SummaryWriter(path)
         self.step_counter=0
 
-class Manager():
+class Manager(AvgManager):
     def __init__(self, file_path):
         username = "cdrec"
         password = "ashdui!#@*$7sj"
         client = MongoClient("mongodb://{}:{}@47.243.233.202:8699/CrossDomainRec".format(username, urllib.parse.quote(password)))
         self.db=client.CrossDomainRec
         self.logger = LogManager('cross_domain', file_path).logger
+        self.writer = SummaryWriter(file_path)
+        self.info = {}
     
     def record(self, result:dict):
         result["timestamp"] = datetime.datetime.utcnow()
