@@ -294,7 +294,7 @@ class DNN(Model):
     
     def create_forward_path(self, args, name='DNN'):
         with tf.variable_scope(name, tf.AUTO_REUSE):
-            mask = tf.cast(tf.greater_equal(self.domain_num, 1), tf.float32)
+            mask = tf.cast(tf.greater_equal(self.history_item_masks, 1), tf.float32)
             
             # get embedding
             item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.item_ids)
