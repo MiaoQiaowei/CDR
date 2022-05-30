@@ -1,4 +1,0 @@
-*.rating
-*.json
-debug/*
-.data/ml_nf/*
