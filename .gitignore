@@ -1,5 +1,7 @@
 *.rating
 *.json
 debug/*
-data/ml_nf/*
+data/*
 *tmp/*
+*.zip
+*.DS_Store
