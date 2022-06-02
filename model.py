@@ -43,101 +43,87 @@ class Model:
     def __init__(self, args):
         self.create_model_variable(args)
         # self.loss, self.opt = self.create_forward_path(args)
+        self.args = args
         self.loss = None
         self.opt = None
 
     def create_model_variable(self, args):
         self.item_count = args.item_count
         self.embedding_dim = args.embedding_dim
-        self.embedding_num = 512 
+        self.embedding_num = args.embedding_num 
         self.domain_num = args.domain_num
         self.max_len = args.max_len
 
         # placeholder
         with tf.name_scope('inputs'):
-            self.user_ids = tf.placeholder(tf.int32, [None, ], name='user_ids')
-            self.item_ids = tf.placeholder(tf.int32, [None, args.domain_num], name='item_ids')
-            self.domain_labels = tf.placeholder(tf.int32, [None, args.domain_num], name='domain_labels')
+            self.user_ids = tf.placeholder(tf.int32, [None,], name='user_ids')
+            self.item_ids = tf.placeholder(tf.int32, [None,], name='item_ids')
+            self.domain_labels = tf.placeholder(tf.int32, [None,], name='domain_labels')
             # self.fixed_len_target_ids = tf.placeholder(tf.int32, [None, args.domain_num, None], name='seq_targets')
 
-            self.history_item_ids = tf.placeholder(tf.int32, [None, args.domain_num, self.max_len], name='history_item_ids')
-            self.history_item_masks = tf.placeholder(tf.int32, [None, args.domain_num, self.max_len], name='history_item_masks')
+            self.history_item_ids = tf.placeholder(tf.int32, [None, self.max_len], name='history_item_ids')
+            self.history_item_masks = tf.placeholder(tf.int32, [None, self.max_len], name='history_item_masks')
 
             self.lr = tf.placeholder(tf.float64, [])
             self.dropout_rate = tf.placeholder(tf.float32, [])
-            self.batch_size = tf.placeholder(tf.int32, [args.batch_size], name='batch_size')
+            self.batch_size = tf.placeholder(tf.int32, [], name='batch_size')
+        
 
         # embedding table
-        self.embedding_tabel = tf.Variable([args.item_count, self.embedding_dim],trainable=True,name='embedding_table')
+        self.embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=0.0, stddev=0.1,dtype= tf.float32),trainable=True,name='embedding_table')
 
         # code book
         self.code_book = tf.get_variable("code_book", [self.embedding_num, self.embedding_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.dtypes.float32))
 
     def create_forward_path(self, args):
-        # mask = tf.cast(tf.greater_equal(self.domain_num, 1), tf.float32)
-        # mask_len = tf.cast(tf.reduce_sum(self.mask, -1), dtype=tf.int32)
-        
-        # # get embedding
-        # item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.item_ids)
-        # target_item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.target_item_ids)
-
-        # # use vqvae
-        # if args.vqvae:
-        #     item_embeddings = self.vqvae(item_embeddings, self.code_book)
-
-        # # get logtis
-        # logtis = self.encoder(item_embeddings)
-
-        # # get loss
-        # loss = self.sample_softmax_loss(logtis, self.item_ids, mask=mask)
-
-        # # get opt
-        # opt = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(loss)
-
-        # return loss, opt
         raise NotImplementedError
 
     def encoder(self, x):
         x = tf.layers.dense(x, 
-                self.domain_num*self.embedding_num, 
+                self.embedding_num, 
                 activation=None, 
                 name='encoder_layer_0'
             )
-        x = tf.reshape(x, [-1, self.domain_num, self.embedding_dim])
+        x = tf.reshape(x, [-1, self.embedding_dim])
         return x
 
-    def vqvae(self, x, code_book):
+    def vqvae(self, x, code_book, mask=None):
         # vqvae
         with tf.name_scope('vqvae'):
             vq_x, encodings = self.get_quantized(x, code_book)
-            vq_x = tf.reshape(vq_x, [-1, self.domain_num*self.max_len, self.embedding_dim])
-            vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(self.mask, axis=-1), [-1, 1])
-            vq_mean = tf.concat([vq_mean, self.item_his_eb_mean], axis=-1)
+            vq_x = tf.reshape(vq_x, [-1, self.max_len, self.embedding_dim])
+            vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(mask, axis=-1), [-1, 1])
+            
         return vq_mean
     
     def sample_softmax_loss(self, x, y, mask):
         weight = tf.Variable(
-            [self.embedding_num, self.embedding_dim],
+            tf.random_normal([self.item_count, self.embedding_dim], mean=0.0, stddev=0.1,dtype= tf.float32),
             trainable=True,
             name='weight'
         )
 
         bias = tf.Variable(
-            [self.embedding_num],
-            initial_value=tf.zeros_initializer(),
-            trainable=True
+            tf.random_normal([self.item_count], mean=0.0, stddev=0.1,dtype= tf.float32),
+            trainable=True,
+            name='bias'
         )
 
+        y = tf.reshape(y, [-1, 1])
+
         loss = tf.nn.sampled_softmax_loss(
-            weight=weight,
-            bias=bias,
+            weights=weight,
+            biases=bias,
+            inputs=x,
             labels=y,
-            inputs=x
+            num_sampled=30 * self.args.batch_size,
+            num_classes=self.item_count
         )
 
         loss *= tf.cast(tf.gather(mask, 0), tf.float32)
         loss = tf.reduce_mean(loss)
+ 
         return loss  
 
     def run(self, sess, inputs):
@@ -171,7 +157,7 @@ class Model:
                 - 2 * tf.matmul(flattened, code_book, transpose_b=True)
         )
         encoding_indices = tf.argmin(distances, axis=1)
-        encodings = tf.one_hot(encoding_indices, self.num_embeddings)
+        encodings = tf.one_hot(encoding_indices, self.embedding_num)
         quantized = tf.matmul(encodings, code_book)
         quantized = tf.reshape(quantized, input_shape)
         return quantized, encodings
@@ -187,22 +173,22 @@ class Model:
         IS_value = tf.layers.dense(flattened, dim, activation=None, name=f'IS_v')
 
         # reshape qkv 2 [bs, domain_num, slen, dim]
-        IS_query_ = tf.reshape(IS_query, [bs,domain_num, slen,dim])
-        IS_key_ = tf.reshape(IS_key, [bs, domain_num, slen, dim])
-        IS_value_ = tf.reshape(IS_value, [bs,domain_num, slen,dim])
+        IS_query_ = tf.reshape(IS_query, [bs, slen,dim])
+        IS_key_ = tf.reshape(IS_key, [bs, slen, dim])
+        IS_value_ = tf.reshape(IS_value, [bs, slen,dim])
 
         # get IS atten
         IS_kq = tf.matmul(IS_key_, tf.transpose(IS_query_,perm=[0,1,3,2])) # [bs, domain_num, slen, slen]
         IS_A = tf.nn.softmax(IS_kq, axis=-1) #only use softmax on the last dim
         Z = tf.matmul(IS_A, IS_value_) # [bs, domain_num, slen, dim]
-        Z = tf.reshape(Z, [bs, domain_num, slen, dim])
+        Z = tf.reshape(Z, [bs,  slen, dim])
 
         # get CS qkv
         CS_query = tf.layers.dense(flattened, dim, activation=None, name=f'CS_q')
         CS_key = tf.layers.dense(flattened, dim, activation=None, name=f'CS_k')
         CS_value = tf.layers.dense(flattened, dim, activation=None, name=f'CS_v')
 
-        other_dim = domain_num*slen
+        other_dim = slen
         CS_kq = tf.matmul( CS_key, tf.transpose(CS_query))
 
         index = [
@@ -219,14 +205,14 @@ class Model:
         CS_A = tf.nn.softmax(CS_kq_, axis=-1)#only use softmax on the last dim
         
         X = tf.matmul(CS_A, CS_value)
-        X = tf.reshape(X,[bs, domain_num, slen, dim])
+        X = tf.reshape(X,[bs,  slen, dim])
         return Z, X
     
     def IS(self, x):
-        bs,domain_num,slen,dim = x.get_shape()
+        bs,slen,dim = x.get_shape()
         flattened = tf.reshape(x, [-1, dim])
         bs = tf.shape(x)[0]
-        other_dim=domain_num*slen
+        other_dim=slen
         
         # get IS qkv
         IS_query = tf.layers.dense(flattened, dim, activation=None, name='IS_q')
@@ -252,7 +238,7 @@ class Model:
         IS_A = tf.nn.softmax(IS_kq, axis=-1) #only use softmax on the last dim
 
         Z = tf.matmul(IS_A, flattened) # [bs, domain_num, slen, dim]
-        Z = tf.reshape(Z, [bs, domain_num, slen, dim])
+        Z = tf.reshape(Z, [bs,  slen, dim])
         return Z
     
     def CS(self, x):
@@ -265,7 +251,7 @@ class Model:
         CS_key = tf.layers.dense(flattened, dim, activation=None, name=f'CS_k')
         # CS_value = tf.layers.dense(flattened, dim, activation=None, name=f'CS_v')
 
-        other_dim = domain_num*slen
+        other_dim = slen
         CS_kq = tf.matmul( CS_key, tf.transpose(CS_query))
 
         index = [
@@ -282,13 +268,13 @@ class Model:
         CS_A = tf.nn.softmax(CS_kq_, axis=-1)#only use softmax on the last dim
         
         X = tf.matmul(CS_A, flattened)
-        X = tf.reshape(X,[bs, domain_num, slen, dim])
+        X = tf.reshape(X,[bs,  slen, dim])
         return X
     
 
 class DNN(Model):
     def __init__(self, args, name='DNN'):
-        super(DNN).__init__(args)
+        super(DNN,self).__init__(args)
         self.loss = self.create_forward_path(args, name)
         self.opt = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
     
@@ -297,31 +283,39 @@ class DNN(Model):
             mask = tf.cast(tf.greater_equal(self.history_item_masks, 1), tf.float32)
             
             # get embedding
-            item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.item_ids)
-            histroy_item_embeddings = tf.nn.embedding_lookup(self.embedding_tabel, self.history_item_ids)
-            histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
-            histroy_item_embeddings *= tf.reshape(mask, (-1, self.domain_num, self.max_len, 1))
+            # item_embeddings = tf.nn.embedding_lookup(self.embedding_table, self.item_ids)
+            
+            histroy_item_embeddings = tf.nn.embedding_lookup(self.embedding_table, self.history_item_ids)
 
-            mask = tf.reshape(self.mask, [-1, self.domain_num * self.max_len])
-            histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.domain_num * self.max_len, self.embedding_dim])
+            histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
+            histroy_item_embeddings *= tf.reshape(mask, (-1, self.max_len, 1))
+
+            mask = tf.reshape(mask, [-1,  self.max_len])
+            histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.max_len, self.embedding_dim])
             masks = tf.concat([tf.expand_dims(mask, -1) for _ in range(self.embedding_dim)], axis=-1)
-            histroy_item_embeddings = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
+            histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
 
             # use vqvae
             if args.vqvae:
-                histroy_item_embeddings = self.vqvae(histroy_item_embeddings, self.code_book)
+                vqvae_item_embeddings_mean = self.vqvae(histroy_item_embeddings, self.code_book, mask)
+                histroy_item_embeddings_mean = tf.concat([vqvae_item_embeddings_mean, histroy_item_embeddings_mean], axis=-1)
 
             # get logtis
-            self.histroy_item_embeddings = self.encoder(histroy_item_embeddings)
+            self.histroy_item_embeddings_mean = self.encoder(histroy_item_embeddings_mean)
 
             # get loss
-            loss = self.sample_softmax_loss(self.histroy_item_embeddings, item_embeddings, mask=mask)
-
+            loss = self.sample_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids, mask=mask)
             return loss
     
-    def get_history_embeddings(self, sess, feed_dict):
+    def get_history_embeddings(self, sess, inputs):
+        feed_dict = {
+            self.domain_labels:inputs[2],
+
+            self.history_item_ids:inputs[0],
+            self.history_item_masks:inputs[1],
+        }
         history_embeddings = sess.run(
-            [self.histroy_item_embeddings],
+            [self.histroy_item_embeddings_mean],
             feed_dict=feed_dict
         )
         return history_embeddings

@@ -1,10 +1,13 @@
 from pymongo import MongoClient
 from tensorboardX import SummaryWriter
+from tools import make_dir
+
 import datetime
 import urllib 
 import logging
 import sys
 import os.path as osp
+
 
 class AvgManager():
     def __init__(self):
@@ -25,23 +28,36 @@ class AvgManager():
         self.sum = 0.0
 
 class LogManager():
-    def __init__(self, logger_name, path):
-        logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s -%(module)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S %p',
-        filename=path,
-        level=logging.INFO)
+    def __init__(self, logger_name, logger_path):
+
         self.logger=logging.getLogger(logger_name)
-        self.writer = SummaryWriter(path)
-        self.step_counter=0
+        
+        formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
+
+        file_handler = logging.FileHandler(logger_path)
+        file_handler.setLevel(logging.INFO)
+        file_handler.setFormatter(formatter)
+
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(formatter)
+
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(stream_handler)
+
 
 class Manager(AvgManager):
     def __init__(self, file_path):
+        super(Manager, self).__init__()
         username = "cdrec"
         password = "ashdui!#@*$7sj"
         client = MongoClient("mongodb://{}:{}@47.243.233.202:8699/CrossDomainRec".format(username, urllib.parse.quote(password)))
         self.db=client.CrossDomainRec
-        self.logger = LogManager('cross_domain', file_path).logger
+
+        make_dir(file_path)
+        logger_path = osp.join(file_path, 'run.log')
+        self.logger = LogManager('cross_domain', logger_path).logger
+
         self.writer = SummaryWriter(file_path)
         self.info = {}
     
@@ -49,6 +65,7 @@ class Manager(AvgManager):
         result["timestamp"] = datetime.datetime.utcnow()
         result["CN_timestamp"] = datetime.datetime.now()
         self.db.CDR.insert_one(result)
+
 
 class Tee:
     def __init__(self, fname, mode="a"):
