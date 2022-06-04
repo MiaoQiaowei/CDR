@@ -1,12 +1,15 @@
 dataset=ml_nf
+rm -rf save
 CUDA_VISIBLE_DEVICES=0 python3 train.py \
-    -dataset $dataset\
-    -data_path data\
-    -model DNN\
+    --dataset $dataset\
+    --data_path data\
+    --model DNN\
     --dropout 0.3\
     --embedding_dim 64\
-    -save_path save\
-    -exp_name test
+    --save_path save\
+    --exp_name test_model_acc\
+    --domain_index 0 \
+    # --vqvae
 
 # dataset=ml_nf
 # exp='XZ_loss_all_test'

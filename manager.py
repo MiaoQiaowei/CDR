@@ -1,5 +1,6 @@
 from pymongo import MongoClient
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
+import tensorflow as tf
 from tools import make_dir
 
 import datetime
@@ -13,10 +14,12 @@ class AvgManager():
     def __init__(self):
         self.counter = 0
         self.sum = 0.
+        self.global_step = 0
     
     def add(self, x):
         self.counter+=1
         self.sum += x
+        self.global_step += 1
     
     def avg(self):
         if self.counter == 0:
@@ -37,14 +40,7 @@ class LogManager():
         file_handler = logging.FileHandler(logger_path)
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(formatter)
-
-        stream_handler = logging.StreamHandler()
-        stream_handler.setLevel(logging.INFO)
-        stream_handler.setFormatter(formatter)
-
         self.logger.addHandler(file_handler)
-        self.logger.addHandler(stream_handler)
-
 
 class Manager(AvgManager):
     def __init__(self, file_path):
@@ -53,18 +49,25 @@ class Manager(AvgManager):
         password = "ashdui!#@*$7sj"
         client = MongoClient("mongodb://{}:{}@47.243.233.202:8699/CrossDomainRec".format(username, urllib.parse.quote(password)))
         self.db=client.CrossDomainRec
+        self.path = file_path
 
         make_dir(file_path)
         logger_path = osp.join(file_path, 'run.log')
         self.logger = LogManager('cross_domain', logger_path).logger
 
-        self.writer = SummaryWriter(file_path)
+        # self.writer = SummaryWriter(file_path)
         self.info = {}
     
     def record(self, result:dict):
         result["timestamp"] = datetime.datetime.utcnow()
         result["CN_timestamp"] = datetime.datetime.now()
         self.db.CDR.insert_one(result)
+    
+    def init_writer(self, graph):
+        self.writer = tf.summary.FileWriter(osp.join(self.path, 'tfboard'), graph)
+    
+    def write(self, summary):
+        self.writer.add_summary(summary, self.counter)
 
 
 class Tee:

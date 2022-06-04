@@ -11,12 +11,12 @@ import os.path as osp
 from data_iterator import DataIterator
 from manager import Manager
 from tqdm import tqdm
-from tools import get_NDCG, get_data_info, get_model, save, restore
+from tools import get_NDCG, get_data_info, get_model, get_trainable_variables, save, restore
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
 def eval(loader, model, sess, manager:Manager, args, name='val'):
-    manager.logger.info(f'eval on domain:{args.domain_index}')
+    # manager.logger.info(f'eval on domain:{args.domain_index}')
 
     embedding_table = sess.run(model.embedding_table)
 
@@ -68,11 +68,11 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
             recall_num = len(set(rank) & set(item_ids_pre_user))
             metric[f'{name}_recall'] += recall_num/len(item_ids_pre_user)
 
-            metric[f'{name}_hit_rate'] += 0 if recall_num > 0 else 1
+            metric[f'{name}_hit_rate'] += 1 if recall_num > 0 else 0
 
         metric[f'{name}_num'] += len(item_ids)
 
-    num = float(metric[f'{name}_num'])
+    num = metric[f'{name}_num']
 
     for k in metric.keys():
         if k != f'{name}_num':
@@ -81,31 +81,33 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
     return metric
 
 def train(train_loader, val_loader, model, sess, manager:Manager, args):
+
     for X, Y in tqdm(train_loader):
         user_ids, item_ids, domain_ids = X
         history_items, history_mask = Y
+
         inputs = [
             user_ids, item_ids, domain_ids,
             history_items, history_mask,
             args.lr, args.dropout, args.batch_size
         ]
 
-        loss = model.run(sess, inputs)
+        loss, summary = model.run(sess, inputs)
 
         manager.add(loss)
+        manager.write(summary)
 
-        if manager.counter % args.val_frequency:
-            #debug
-            manager.logger.info(f'loss:{loss}')
+        if manager.global_step % args.test_iter == 0:
 
+            manager.logger.info(f'step:{manager.global_step}')
             metric = eval(val_loader, model, sess, manager, args, name='val')
-
+            metric['train_loss'] = manager.avg()
             manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
 
-            metric['train_loss'] = manager.avg()
-
-            for k,v in metric.items():
-                manager.writer.add_scalar(k, v, manager.counter)
+            # for k,v in metric.items():
+            #     manager.writer.add_summary(k, v, manager.counter)
+            
+            manager.clean()
         
         if manager.counter >= args.max_step:
             break
@@ -126,35 +128,31 @@ def test(loader, model, sess, manager:Manager, args):
 def get_args():
     parser = argparse.ArgumentParser()
     # data
-    parser.add_argument('-dataset', type=str)
-    parser.add_argument('-data_path', type=str)
-    parser.add_argument('-save_path', type=str)
+    parser.add_argument('--dataset', type=str, default='ml_nf')
+    parser.add_argument('--data_path', type=str, default='data')
+    parser.add_argument('--save_path', type=str, default='save')
     parser.add_argument('--restore_path', type=str, default='')
     parser.add_argument('--batch_size', type=int, default=128)
     parser.add_argument('--domain_num', type=int, default=1)
     parser.add_argument('--domain_index', type=int, default=0)
 
     # model
-    parser.add_argument('-model', type=str)
+    parser.add_argument('--model', type=str,default='DNN')
     parser.add_argument('--dropout', type=float, default=0.3)
     parser.add_argument('--embedding_dim', type=int, default=64)
     parser.add_argument('--embedding_num', type=int, default=64)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--ISCS', action='store_true', default=False)
     parser.add_argument('--vqvae', action='store_true', default=False)
-    # parser.add_argument('--u2u_cl',  type=float, default=0.0)
-    # parser.add_argument('--u2i_cl', type=float, default=0.0)
-    # parser.add_argument('--i2i_cl', type=float, default=0.0)
 
     # run
-    parser.add_argument('-exp_name', type=str)
+    parser.add_argument('--exp_name', type=str, default='test')
     parser.add_argument('--train', action='store_true', default=True)
     parser.add_argument('--only_test_last_one', action='store_true', default=False)
     parser.add_argument('--patience', type=int, default=3)
     parser.add_argument('--seed', type=int, default=19)
     parser.add_argument('--coef', type=float,default=0.0)
     parser.add_argument('--topN', type=int, default=50)
-    parser.add_argument('--val_frequency', type=int, default=50)
     parser.add_argument('--max_step', type=int, default=100000)
     args = parser.parse_args()
 
@@ -165,7 +163,8 @@ def main(_):
 
     # set helper
     args.begin_time = time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime(time.time()))
-    manager = Manager(f'{args.save_path}/{args.exp_name}')
+    args.save_path = osp.join(args.save_path, args.exp_name)
+    manager = Manager(args.save_path)
     
     # set seed 
     tf.set_random_seed(args.seed)
@@ -180,12 +179,13 @@ def main(_):
 
     args.item_count = data_info['item_count']
     args.max_len = data_info['max_len']
+    args.test_iter = data_info['test_iter']
+    # args.batch_size = data_info['batch_size']
 
     # get model
     model = get_model(args)
 
     manager.logger.info("max_iter: {}".format(args.max_step))
-    args.save_path = f'{args.save_path}/{args.exp_name}'
     manager.info.update(vars(args))
     all_info = pprint.pformat(manager.info)
     manager.logger.info(all_info)
@@ -193,7 +193,7 @@ def main(_):
     gpu_options = tf.GPUOptions(allow_growth=True)
 
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        from tensorflow.python import debug as tf_debug
+        # from tensorflow.python import debug as tf_debug
 
         train_loader = DataIterator(
             data_path=train_path,
@@ -229,12 +229,17 @@ def main(_):
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
 
+        manager.init_writer(sess.graph)
+
         manager.logger.info('train begin')
         sys.stdout.flush()
 
         if args.restore_path != '':
             manager.logger.info(f'restore model from {args.restore}')
             restore(args.restore, sess)
+        
+        variables = get_trainable_variables(ignore_names=['code_book', 'encoder'])
+        sess.run(tf.variables_initializer(var_list=variables))
 
         train(train_loader, val_loader, model, sess, manager, args)
 
