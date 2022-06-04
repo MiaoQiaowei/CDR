@@ -17,7 +17,7 @@ class AvgManager():
         self.global_step = 0
     
     def add(self, x):
-        self.counter+=1
+        self.counter += 1
         self.sum += x
         self.global_step += 1
     
@@ -55,8 +55,8 @@ class Manager(AvgManager):
         logger_path = osp.join(file_path, 'run.log')
         self.logger = LogManager('cross_domain', logger_path).logger
 
-        # self.writer = SummaryWriter(file_path)
         self.info = {}
+        self.info['best_recall']=0.0
     
     def record(self, result:dict):
         result["timestamp"] = datetime.datetime.utcnow()

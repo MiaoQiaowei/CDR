@@ -61,7 +61,7 @@ def get_model(args):
 def save(path, sess):
     if not osp.exists(path):
         os.makedirs(path)
-    saver = tf.train.Saver()
+    saver = tf.compat.v1.train.Saver()
     saver.save(sess, osp.join(path, 'model.ckpt'))
 
 def restore(path, sess):
@@ -106,29 +106,4 @@ def make_dir(path):
 def get_trainable_variables(ignore_names=[]):
     variable_names = [v for v in tf.trainable_variables() if not any(name in v.name for name in ignore_names)]
     return variable_names
-
-# def load_item_cate(source):
-#     item_cate = {}
-#     try:
-#         with open(source, 'r') as f:
-#             for line in f:
-#                 conts = line.strip().split(',')
-#                 item_id = int(conts[0])
-#                 cate_id = conts[1]
-#                 item_cate[item_id] = cate_id
-#     except Exception as e:
-#         raise ValueError("load item cate file failed: {}".format(e))
-#     return item_cate
-
-# def get_diversity(item_list, item_cate_map):
-#     n = len(item_list)
-#     try:
-#         diversity = 0.0
-#         for i in range(n):
-#             for j in range(i+1, n):
-#                 diversity += item_cate_map[item_list[i]] != item_cate_map[item_list[j]]
-#         diversity /= ((n-1) * n / 2)
-#     except:
-#         pass
-#     return diversity
 

@@ -4,7 +4,7 @@ debug/*
 data/ml_nf/*
 data/amazon_data/*
 data/amazon_data_all/*
-data/tf_iqi/*
+data/tc_iqi/*
 *tmp/*
 *.vscode
 *.__pycache__

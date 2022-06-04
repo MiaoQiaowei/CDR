@@ -50,13 +50,6 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
         
         history_embeddings = model.get_history_embeddings(sess, [history_items, history_mask, domain_ids])[0]
 
-        # history_embeddings = tf.squeeze(history_embeddings[0])
-
-        # if len(history_embeddings.shape) == 3:
-        #     history_embeddings = history_embeddings[:, 1, :].copy(order='C')
-        # else:
-        #     history_embeddings = history_embeddings[:, 1, :, :].copy(order='C')
-
         history_embeddings = np.array(history_embeddings)
 
         # dist, index
@@ -95,29 +88,38 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
         loss, summary = model.run(sess, inputs)
 
         manager.add(loss)
-        manager.write(summary)
 
         if manager.global_step % args.test_iter == 0:
-
+            
             manager.logger.info(f'step:{manager.global_step}')
             metric = eval(val_loader, model, sess, manager, args, name='val')
             metric['train_loss'] = manager.avg()
-            manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
-
-            # for k,v in metric.items():
-            #     manager.writer.add_summary(k, v, manager.counter)
+            manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items() if 'num' not in key]))
+            manager.info.update(metric)
+            model.metric.update(metric)
             
+            if metric['val_recall'] > manager.info['best_recall']:
+                save(args.save_path, sess)
+                manager.info['best_recall'] = metric['val_recall']
+                manager.info['patience'] = 0
+            else:
+                manager.info['patience'] += 1
+                if manager.info['patience'] > args.patience:
+                    break
+
             manager.clean()
         
         if manager.counter >= args.max_step:
             break
+
+        manager.write(summary)
             
-        
 
 def test(loader, model, sess, manager:Manager, args):
     manager.logger.info(f'testing!')
 
-    restore(args.save_path,sess)
+    restore = osp.join(args.save_path, 'model.ckpt')
+    restore(restore, sess)
 
     metric = eval(loader, model, sess, manager, args, name='test')
     manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
@@ -180,7 +182,6 @@ def main(_):
     args.item_count = data_info['item_count']
     args.max_len = data_info['max_len']
     args.test_iter = data_info['test_iter']
-    # args.batch_size = data_info['batch_size']
 
     # get model
     model = get_model(args)

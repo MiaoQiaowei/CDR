@@ -48,6 +48,12 @@ class Model:
         self.opt = None
         self.step = 0
         self.merge = None
+        self.metric = {
+            'recall':0.0,
+            'ndcg':0.0,
+            'hit_rate':0.0,
+            'best_recall':0.0
+        }
 
     def see(self):
         grads = tf.gradients(self.loss, tf.trainable_variables())
@@ -113,9 +119,6 @@ class Model:
     
     def sampled_softmax_loss(self, x, y, mask=None):
         with tf.name_scope('sample_softmax_loss'):
-
-            # tf.summary.histogram('weight', self.weight)
-            # tf.summary.histogram('bias', self.bias)
 
             y = tf.reshape(y, [-1, 1])
 
@@ -310,12 +313,14 @@ class DNN(Model):
 
             # get logtis
             self.histroy_item_embeddings_mean = self.encoder(histroy_item_embeddings_mean)
-            # tf.summary.histogram('histroy_item_embeddings_mean',self.histroy_item_embeddings_mean)
 
             # get loss
             loss = self.sampled_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids)
 
             tf.summary.scalar('loss', loss)
+
+            for k,v in self.metric.items():
+                tf.summary.scalar(k, v)
 
             self.merge = tf.summary.merge_all()
             return loss
@@ -332,193 +337,3 @@ class DNN(Model):
             feed_dict=feed_dict
         )
         return history_embeddings
-
-class DNN3():
-    def __init__(self, args, name='DNN'):
-        self.args = args
-        self.loss = None
-        self.opt = None
-        self.step = 0
-        self.merge = None
-        self.item_count = args.item_count
-        self.embedding_dim = args.embedding_dim
-        self.embedding_num = args.embedding_num 
-        self.domain_num = args.domain_num
-        self.max_len = args.max_len
-
-        # placeholder
-        with tf.name_scope('inputs'):
-            self.user_ids = tf.placeholder(tf.int32, [None,], name='user_ids')
-            self.item_ids = tf.placeholder(tf.int32, [None,], name='item_ids')
-            self.domain_labels = tf.placeholder(tf.int32, [None,], name='domain_labels')
-            # self.fixed_len_target_ids = tf.placeholder(tf.int32, [None, args.domain_num, None], name='seq_targets')
-
-            self.history_item_ids = tf.placeholder(tf.int32, [None, self.max_len], name='history_item_ids')
-            self.history_item_masks = tf.placeholder(tf.int32, [None, self.max_len], name='history_item_masks')
-
-            self.lr = tf.placeholder(tf.float64, [])
-            self.dropout_rate = tf.placeholder(tf.float32, [])
-            self.batch_size = tf.placeholder(tf.int32, [], name='batch_size')
-        
-
-        # embedding table
-        with tf.name_scope('embedding_table'):
-            # self.embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=0.0, stddev=0.01,dtype= tf.float32), trainable=True, name='embedding_table')
-            ones = np.ones([self.item_count, self.embedding_dim])
-            self.embedding_table = tf.get_variable("embedding_table", [self.item_count, self.embedding_dim],      trainable=True,initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=1, dtype=tf.dtypes.float32))
-            self.embedding_table_bias = tf.get_variable("embedding_table_bias", [self.item_count],      trainable=True,initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=1, dtype=tf.dtypes.float32))
-            # tf.random_normal_initializer(mean=0.0, stddev=0.01, seed=None, dtype=tf.dtypes.float32)
-
-        # code book
-        # with tf.name_scope('code_book'):
-        #     self.code_book = tf.get_variable("code_book", [self.embedding_num, self.embedding_dim], trainable=True,
-        #                                     initializer=tf.random_normal_initializer(mean=0.0, stddev=0.01, seed=None, dtype=tf.dtypes.float32))
-
-        with tf.variable_scope('DNN', tf.AUTO_REUSE):
-            mask = tf.cast(tf.greater_equal(self.history_item_masks, 1), tf.float32)
-            
-            # get embedding
-            # item_embeddings = tf.nn.embedding_lookup(self.embedding_table, self.item_ids)
-            
-            histroy_item_embeddings = tf.nn.embedding_lookup(self.embedding_table, self.history_item_ids)
-
-            # histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
-            histroy_item_embeddings *= tf.reshape(mask, (-1, self.max_len, 1))
-
-            mask = tf.reshape(mask, [-1,  self.max_len])
-            histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.max_len, self.embedding_dim])
-            masks = tf.concat([tf.expand_dims(mask, -1) for _ in range(self.embedding_dim)], axis=-1)
-            histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
-
-
-            # print(histroy_item_embeddings_mean.shape)
-            # exit()
-            histroy_item_embeddings_mean = tf.Variable(tf.random_normal([self.args.batch_size, self.embedding_dim], mean=0.0, stddev=0.01,dtype= tf.float32), trainable=True, name='histroy_item_embeddings_mean_test')
-
-            # use vqvae
-            if args.vqvae:
-                vqvae_item_embeddings_mean = self.vqvae(histroy_item_embeddings, self.code_book, mask)
-                histroy_item_embeddings_mean = tf.concat([vqvae_item_embeddings_mean, histroy_item_embeddings_mean], axis=-1)
-
-            # get logtis
-            with tf.name_scope('encode_layers'):
-                histroy_item_embeddings_mean = tf.layers.dense(histroy_item_embeddings_mean, 
-                        self.embedding_dim, 
-                        activation=None, 
-                        name='encoder_layer_0'
-                    )
-                histroy_item_embeddings_mean = tf.reshape(histroy_item_embeddings_mean, [-1, self.embedding_dim])
-            self.histroy_item_embeddings_mean = histroy_item_embeddings_mean
-            # tf.summary.histogram('histroy_item_embeddings_mean',self.histroy_item_embeddings_mean)
-
-        # self.weight = tf.get_variable("loss_weight", [self.item_count, self.embedding_dim], trainable=1,
-        #                                     initializer=tf.random_normal_initializer(mean=0.0, stddev=0.01, seed=None, dtype=tf.dtypes.float32))
-
-        # self.bias = tf.get_variable("loss_bias", [self.item_count], trainable=True,
-        #                                 initializer=tf.random_normal_initializer(mean=0.0, stddev=0.01, seed=None, dtype=tf.dtypes.float32))
-
-        # tf.summary.histogram('weight', self.weight)
-        # tf.summary.histogram('bias', self.bias)
-
-        x = self.histroy_item_embeddings_mean
-        y = self.item_ids
-        y = tf.reshape(y, [-1, 1])
-
-        loss = tf.nn.sampled_softmax_loss(
-            weights=self.embedding_table,
-            biases=self.embedding_table_bias,
-            inputs=x,
-            labels=y,
-            num_sampled=30 * self.args.batch_size,
-            num_classes=self.item_count
-        )
-
-        # loss *= tf.cast(tf.gather(mask, 0), tf.float32)
-        self.loss = tf.reduce_mean(loss)
-
-            # get loss
-        # self.loss = self.sampled_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids)
-
-        tf.summary.scalar('loss', self.loss)
-
-        grads = tf.gradients(self.loss, tf.trainable_variables())
-        # Summarize all gradients
-        for v in tf.trainable_variables():
-            print(v.name)
-        # exit()
-        for grad, var in zip(grads, tf.trainable_variables()):
-            # print(type(grad))
-            # exit()
-            if grad is None:
-                print('not find')
-                print(var.name + '/gradient')
-                # exit()
-                continue
-            tf.summary.histogram(var.name + '/gradient', grad)
-        # print(grads)
-        # exit()
-            
-        self.opt = tf.train.AdamOptimizer(learning_rate=self.lr)
-        self.grads_and_vars = self.opt.compute_gradients(loss)
-
-        self.train = self.opt.apply_gradients(self.grads_and_vars)
-            
-        # self.opt = tf.train.AdamOptimizer(learning_rate=self.lr)
-
-        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        # with tf.control_dependencies(update_ops):
-        #     optimizer = tf.train.MomentumOptimizer(0.01, momentum=0.01, use_nesterov= True, name='Momentum') #定义优化器
-            
-        #     grads_and_vars = optimizer.compute_gradients(self.loss) #计算梯度
-    
-        #     update_op = optimizer.apply_gradients(grads_and_vars) #定义反向传播操作
-
-        #     grads_and_vars = self.opt.compute_gradients(self.loss)
-        #     for g, v in grads_and_vars:
-        #             print("*****", v.name, g) 
-
-        self.merge = tf.summary.merge_all()
-    
-    # def create_forward_path(self, args, name='DNN'):
-        
-    
-    def get_history_embeddings(self, sess, inputs):
-        feed_dict = {
-            self.domain_labels:inputs[2],
-
-            self.history_item_ids:inputs[0],
-            self.history_item_masks:inputs[1],
-        }
-        history_embeddings = sess.run(
-            [self.histroy_item_embeddings_mean],
-            feed_dict=feed_dict
-        )
-        return history_embeddings
-    
-    def run(self, sess, inputs):
-        
-        self.step += 1
-        # print(inputs[4])
-        # print(np.array(inputs[4]).shape)
-        # exit()
-
-        feed_dict = {
-            self.user_ids:inputs[0],
-            self.item_ids:inputs[1],
-            self.domain_labels:inputs[2],
-
-            self.history_item_ids:inputs[3],
-            self.history_item_masks:inputs[4],
-
-            self.lr:inputs[5],
-            self.dropout_rate:inputs[6],
-            self.batch_size:inputs[7]
-        }
-
-        loss, _, summary = sess.run(
-            [self.loss, self.train, self.merge],
-            feed_dict=feed_dict
-        )
-
-
-        return loss, summary
