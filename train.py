@@ -74,6 +74,8 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
     return metric
 
 def train(train_loader, val_loader, model, sess, manager:Manager, args):
+    pre_recall = 0.0
+    patience = 0
 
     for X, Y in tqdm(train_loader):
         user_ids, item_ids, domain_ids = X
@@ -103,11 +105,15 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             if metric['val_recall'] > manager.info['best_recall']:
                 save(args.save_path, sess)
                 manager.info['best_recall'] = metric['val_recall']
-                manager.info['patience'] = 0
+            
+            if pre_recall < metric['val_recall']:
+                patience = 0
             else:
-                manager.info['patience'] += 1
-                if manager.info['patience'] > args.patience:
+                patience += 1
+                if patience > args.patience:
                     break
+            
+            pre_recall = metric['val_recall']
 
             manager.clean()
         
