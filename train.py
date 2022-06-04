@@ -85,18 +85,20 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             args.lr, args.dropout, args.batch_size
         ]
 
-        loss, summary = model.run(sess, inputs)
+        loss = model.run(sess, inputs)
 
         manager.add(loss)
 
         if manager.global_step % args.test_iter == 0:
-            
+
             manager.logger.info(f'step:{manager.global_step}')
             metric = eval(val_loader, model, sess, manager, args, name='val')
             metric['train_loss'] = manager.avg()
             manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items() if 'num' not in key]))
+            
+            for k,v in metric.items():
+                manager.writer.add_scalar(tag=k, scalar_value=v,global_step=manager.global_step / args.test_iter)
             manager.info.update(metric)
-            model.metric.update(metric)
             
             if metric['val_recall'] > manager.info['best_recall']:
                 save(args.save_path, sess)
@@ -110,16 +112,13 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             manager.clean()
         
         if manager.counter >= args.max_step:
-            break
-
-        manager.write(summary)
-            
+            break            
 
 def test(loader, model, sess, manager:Manager, args):
     manager.logger.info(f'testing!')
 
-    restore = osp.join(args.save_path, 'model.ckpt')
-    restore(restore, sess)
+    restore_path = osp.join(args.save_path, 'model.ckpt')
+    restore(restore_path, sess)
 
     metric = eval(loader, model, sess, manager, args, name='test')
     manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
@@ -230,22 +229,16 @@ def main(_):
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
 
-        manager.init_writer(sess.graph)
-
         manager.logger.info('train begin')
         sys.stdout.flush()
 
         if args.restore_path != '':
-            manager.logger.info(f'restore model from {args.restore}')
-            restore(args.restore, sess)
-        
-        variables = get_trainable_variables(ignore_names=['code_book', 'encoder'])
-        sess.run(tf.variables_initializer(var_list=variables))
+            manager.logger.info(f'restore model from {args.restore_path}')
+            restore(args.restore_path, sess)
 
         train(train_loader, val_loader, model, sess, manager, args)
 
         test(test_loader, model, sess, manager, args)
-
 
 if __name__ == '__main__':
     tf.app.run()

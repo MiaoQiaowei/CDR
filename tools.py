@@ -65,8 +65,8 @@ def save(path, sess):
     saver.save(sess, osp.join(path, 'model.ckpt'))
 
 def restore(path, sess):
-    path = osp.join(path, "model.ckpt")
-    reader = pywrap_tensorflow.NewCheckpointReader()
+    path = osp.join(path)
+    reader = pywrap_tensorflow.NewCheckpointReader(path)
     var_to_shape_map = reader.get_variable_to_shape_map()
     variables = tf.global_variables()
 

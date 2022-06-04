@@ -1,4 +1,3 @@
-from turtle import update
 import tensorflow as tf
 import numpy as np
 
@@ -47,21 +46,6 @@ class Model:
         self.loss = None
         self.opt = None
         self.step = 0
-        self.merge = None
-        self.metric = {
-            'recall':0.0,
-            'ndcg':0.0,
-            'hit_rate':0.0,
-            'best_recall':0.0
-        }
-
-    def see(self):
-        grads = tf.gradients(self.loss, tf.trainable_variables())
-
-        for grad, var in zip(grads, tf.trainable_variables()):
-            if grad is None:
-                raise ValueError(f'{var.name} has no gradient')
-            tf.summary.histogram(var.name + '/gradient', grad)
 
     def create_model_variable(self, args):
         self.item_count = args.item_count
@@ -153,12 +137,12 @@ class Model:
             self.batch_size:inputs[7]
         }
 
-        loss, _, summary = sess.run(
-            [self.loss, self.opt, self.merge],
+        loss, _ = sess.run(
+            [self.loss, self.opt],
             feed_dict=feed_dict
         )
 
-        return loss, summary
+        return loss
     
     def get_quantized(self, x, code_book):
         input_shape = tf.shape(x)
@@ -317,12 +301,12 @@ class DNN(Model):
             # get loss
             loss = self.sampled_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids)
 
-            tf.summary.scalar('loss', loss)
+            # tf.summary.scalar('loss', loss)
 
-            for k,v in self.metric.items():
-                tf.summary.scalar(k, v)
+            # for k,v in self.metric.items():
+            #     tf.summary.scalar(k, v)
 
-            self.merge = tf.summary.merge_all()
+            # self.merge = tf.summary.merge_all()
             return loss
     
     def get_history_embeddings(self, sess, inputs):

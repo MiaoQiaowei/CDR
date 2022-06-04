@@ -1,5 +1,5 @@
 from pymongo import MongoClient
-# from tensorboardX import SummaryWriter
+from tensorboardX import SummaryWriter
 import tensorflow as tf
 from tools import make_dir
 
@@ -49,7 +49,7 @@ class Manager(AvgManager):
         password = "ashdui!#@*$7sj"
         client = MongoClient("mongodb://{}:{}@47.243.233.202:8699/CrossDomainRec".format(username, urllib.parse.quote(password)))
         self.db=client.CrossDomainRec
-        self.path = file_path
+        self.writer=SummaryWriter(file_path)
 
         make_dir(file_path)
         logger_path = osp.join(file_path, 'run.log')
@@ -61,14 +61,7 @@ class Manager(AvgManager):
     def record(self, result:dict):
         result["timestamp"] = datetime.datetime.utcnow()
         result["CN_timestamp"] = datetime.datetime.now()
-        self.db.CDR.insert_one(result)
-    
-    def init_writer(self, graph):
-        self.writer = tf.summary.FileWriter(osp.join(self.path, 'tfboard'), graph)
-    
-    def write(self, summary):
-        self.writer.add_summary(summary, self.counter)
-
+        self.db.CDR_qw.insert_one(result)
 
 class Tee:
     def __init__(self, fname, mode="a"):
