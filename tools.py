@@ -58,25 +58,35 @@ def get_model(args):
 
     return model    
 
+# def save(path, sess):
+#     if not osp.exists(path):
+#         os.makedirs(path)
+#     saver = tf.compat.v1.train.Saver()
+#     saver.save(sess, osp.join(path, 'model.ckpt'))
+
+# def restore(path, sess):
+#     path = osp.join(path)
+#     reader = pywrap_tensorflow.NewCheckpointReader(path)
+#     var_to_shape_map = reader.get_variable_to_shape_map()
+#     variables = tf.global_variables()
+
+#     var_to_restore = []
+#     for var in variables:
+#         if var.name.split(':')[0] in var_to_shape_map:
+#             var_to_restore.append(var)
+    
+#     saver = tf.train.Saver(var_list=var_to_restore)
+#     saver.restore(sess,path)
+
+def restore(path, sess):
+        saver = saver = tf.train.Saver()
+        saver.restore(sess, path)
+    
 def save(path, sess):
     if not osp.exists(path):
         os.makedirs(path)
-    saver = tf.compat.v1.train.Saver()
+    saver = tf.train.Saver()
     saver.save(sess, osp.join(path, 'model.ckpt'))
-
-def restore(path, sess):
-    path = osp.join(path)
-    reader = pywrap_tensorflow.NewCheckpointReader(path)
-    var_to_shape_map = reader.get_variable_to_shape_map()
-    variables = tf.global_variables()
-
-    var_to_restore = []
-    for var in variables:
-        if var.name.split(':')[0] in var_to_shape_map:
-            var_to_restore.append(var)
-    
-    saver = tf.train.Saver(var_list=var_to_restore)
-    saver.restore(sess,path)
 
 def get_DCG(scores):
     return np.sum(

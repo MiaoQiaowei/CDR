@@ -1,5 +1,7 @@
 import tensorflow as tf
 import numpy as np
+import os.path as osp
+import os
 
 def get_cos_similarity(x1, x2, dim_num=4, eye=True):
         #[num, dim]
@@ -68,14 +70,14 @@ class Model:
             self.batch_size = tf.placeholder(tf.int32, [], name='batch_size')
 
         # code book
-        with tf.name_scope('code_book'):
+        with tf.name_scope('code_book_vars'):
             self.code_book = tf.get_variable("code_book", [self.embedding_num, self.embedding_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.dtypes.float32))
 
         # embedding table
-        with tf.name_scope('embedding_table'):
-            upper = args.upper_boundry
-            lower = args.lower_boundry
+        with tf.name_scope('embedding_table_vars'):
+            upper = args.upper_boundary
+            lower = args.lower_boundary
             mean = (upper+lower)/2
             stddev = args.stddev
 
@@ -271,12 +273,23 @@ class Model:
         X = tf.matmul(CS_A, flattened)
         X = tf.reshape(X,[bs,  slen, dim])
         return X   
+    
+    def restore(self, path, sess):
+        saver = saver = tf.train.Saver()
+        saver.restore(sess, path)
+    
+    def save(self, path, sess):
+        if not osp.exists(path):
+            os.makedirs(path)
+        saver = tf.train.Saver()
+        saver.save(sess, osp.join(path, 'model.ckpt'))
+
 
 class DNN(Model):
     def __init__(self, args, name='DNN'):
         super(DNN,self).__init__(args)
-        self.lowerboundary = 0
-        self.upperboundary = 0 
+        self.lowerboundary = args.lower_boundary
+        self.upperboundary = args.upper_boundary
         self.stddev = 0
         self.loss = self.create_forward_path(args, name)
         self.opt = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)

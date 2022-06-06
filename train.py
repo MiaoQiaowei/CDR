@@ -13,7 +13,7 @@ from torch import float64
 from data_iterator import DataIterator
 from manager import Manager
 from tqdm import tqdm
-from tools import get_NDCG, get_data_info, get_model, get_trainable_variables, save, restore
+from tools import get_NDCG, get_data_info, get_model, restore, save
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
@@ -76,7 +76,6 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
     return metric
 
 def train(train_loader, val_loader, model, sess, manager:Manager, args):
-    pre_recall = 0.0
     patience = 0
 
     for X, Y in tqdm(train_loader):
@@ -119,8 +118,6 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
                 patience += 1
                 if patience > args.patience:
                     break
-            
-            pre_recall = metric['val_recall']
 
             manager.clean()
         
@@ -129,19 +126,17 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
 
         
 
-def test(loader, model, manager:Manager, args):
+def test(loader, model, sess, manager:Manager, args):
     manager.logger.info(f'testing!')
 
-    gpu_options = tf.GPUOptions(allow_growth=True)
-    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        restore_path = osp.join(args.save_path, 'model.ckpt')
-        restore(restore_path, sess)
+    restore_path = osp.join(args.save_path, 'model.ckpt')
+    restore(restore_path, sess)
 
-        metric = eval(loader, model, sess, manager, args, name='test')
-        manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
+    metric = eval(loader, model, sess, manager, args, name='test')
+    manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
 
-        manager.info.update(metric)
-        manager.record(manager.info)
+    manager.info.update(metric)
+    manager.record(manager.info)
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -162,8 +157,8 @@ def get_args():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--ISCS', action='store_true', default=False)
     parser.add_argument('--vqvae', action='store_true', default=False)
-    parser.add_argument('--upper_boundry', type=float, default=1)
-    parser.add_argument('--lower_boundry', type=float, default=-1)
+    parser.add_argument('--upper_boundary', type=float, default=1)
+    parser.add_argument('--lower_boundary', type=float, default=-1)
     parser.add_argument('--stddev', type=float, default=0.1)
 
     # run
@@ -258,7 +253,7 @@ def main(_):
 
         train(train_loader, val_loader, model, sess, manager, args)
 
-        test(test_loader, model, manager, args)
+        test(test_loader, model, sess, manager, args)
 
 if __name__ == '__main__':
     tf.app.run()
