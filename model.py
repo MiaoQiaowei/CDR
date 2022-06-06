@@ -59,7 +59,6 @@ class Model:
             self.user_ids = tf.placeholder(tf.int32, [None,], name='user_ids')
             self.item_ids = tf.placeholder(tf.int32, [None,], name='item_ids')
             self.domain_labels = tf.placeholder(tf.int32, [None,], name='domain_labels')
-            # self.fixed_len_target_ids = tf.placeholder(tf.int32, [None, args.domain_num, None], name='seq_targets')
 
             self.history_item_ids = tf.placeholder(tf.int32, [None, self.max_len], name='history_item_ids')
             self.history_item_masks = tf.placeholder(tf.int32, [None, self.max_len], name='history_item_masks')
@@ -67,17 +66,23 @@ class Model:
             self.lr = tf.placeholder(tf.float64, [])
             self.dropout_rate = tf.placeholder(tf.float32, [])
             self.batch_size = tf.placeholder(tf.int32, [], name='batch_size')
-        
-
-        # embedding table
-        with tf.name_scope('embedding_table'):
-            self.embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=0.0, stddev=0.01,dtype= tf.float32), trainable=True, name='embedding_table')
-            self.embedding_table_bias = tf.Variable(tf.random_normal([self.item_count], mean=0.0, stddev=0.01,dtype= tf.float32), trainable=True, name='embedding_table_bias')
 
         # code book
         with tf.name_scope('code_book'):
             self.code_book = tf.get_variable("code_book", [self.embedding_num, self.embedding_dim], trainable=True,
-                                            initializer=tf.random_normal_initializer(mean=0.0, stddev=0.01, seed=None, dtype=tf.dtypes.float32))
+                                            initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.dtypes.float32))
+
+        # embedding table
+        with tf.name_scope('embedding_table'):
+            upper = args.upper_boundry
+            lower = args.lower_boundry
+            mean = (upper+lower)/2
+            stddev = args.stddev
+
+            self.embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=mean, stddev=stddev,dtype= tf.float32), trainable=True, name='embedding_table')
+            # self.embedding_table = tf.get_variable("embedding_table", [self.item_count, self.embedding_dim], trainable=True)
+
+            self.embedding_table_bias = tf.Variable(tf.random_normal([self.item_count], mean=0.0, stddev=0.1,dtype= tf.float32), trainable=True, name='embedding_table_bias')
 
     def create_forward_path(self, args):
         raise NotImplementedError
@@ -270,17 +275,22 @@ class Model:
 class DNN(Model):
     def __init__(self, args, name='DNN'):
         super(DNN,self).__init__(args)
+        self.lowerboundary = 0
+        self.upperboundary = 0 
+        self.stddev = 0
         self.loss = self.create_forward_path(args, name)
         self.opt = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
-    
+        
     def create_forward_path(self, args, name='DNN'):
         with tf.variable_scope(name, tf.AUTO_REUSE):
             mask = tf.cast(tf.greater_equal(self.history_item_masks, 1), tf.float32)
             
             # get embedding
-            # item_embeddings = tf.nn.embedding_lookup(self.embedding_table, self.item_ids)
-            
             histroy_item_embeddings = tf.nn.embedding_lookup(self.embedding_table, self.history_item_ids)
+
+            self.upperboundary_tf = tf.reduce_max(histroy_item_embeddings)
+            self.lowerboundary_tf = tf.reduce_min(histroy_item_embeddings)
+            self.stddev_tf = tf.math.reduce_std(histroy_item_embeddings)
 
             # histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
             histroy_item_embeddings *= tf.reshape(mask, (-1, self.max_len, 1))
@@ -301,12 +311,6 @@ class DNN(Model):
             # get loss
             loss = self.sampled_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids)
 
-            # tf.summary.scalar('loss', loss)
-
-            # for k,v in self.metric.items():
-            #     tf.summary.scalar(k, v)
-
-            # self.merge = tf.summary.merge_all()
             return loss
     
     def get_history_embeddings(self, sess, inputs):
@@ -321,3 +325,32 @@ class DNN(Model):
             feed_dict=feed_dict
         )
         return history_embeddings
+        
+    
+    def run(self, sess, inputs):
+    
+        self.step += 1
+
+        feed_dict = {
+            self.user_ids:inputs[0],
+            self.item_ids:inputs[1],
+            self.domain_labels:inputs[2],
+
+            self.history_item_ids:inputs[3],
+            self.history_item_masks:inputs[4],
+
+            self.lr:inputs[5],
+            self.dropout_rate:inputs[6],
+            self.batch_size:inputs[7]
+        }
+
+        loss, _ , upperboundary, lowerboundary, stddev= sess.run(
+            [self.loss, self.opt, self.upperboundary_tf, self.lowerboundary_tf, self.stddev_tf],
+            feed_dict=feed_dict
+        )
+
+        self.upperboundary = max(upperboundary, self.upperboundary)
+        self.lowerboundary = min(lowerboundary, self.lowerboundary)
+        self.stddev = max(stddev, self.stddev)
+
+        return loss

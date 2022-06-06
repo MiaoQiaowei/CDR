@@ -8,6 +8,8 @@ import tensorflow as tf
 import time
 import os.path as osp
 
+from torch import float64
+
 from data_iterator import DataIterator
 from manager import Manager
 from tqdm import tqdm
@@ -96,7 +98,12 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             manager.logger.info(f'step:{manager.global_step}')
             metric = eval(val_loader, model, sess, manager, args, name='val')
             metric['train_loss'] = manager.avg()
+            manager.info['lowerboundary'] = float(model.lowerboundary)
+            manager.info['upperboundary'] = float(model.upperboundary)
+            manager.info['stddev'] = float(model.stddev)
+
             manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items() if 'num' not in key]))
+            manager.logger.info(f'lowerboundary:{model.lowerboundary}  upperboundary:{model.upperboundary} stddev:{model.stddev}')
             
             for k,v in metric.items():
                 manager.writer.add_scalar(tag=k, scalar_value=v,global_step=manager.global_step / args.test_iter)
@@ -106,7 +113,7 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
                 save(args.save_path, sess)
                 manager.info['best_recall'] = metric['val_recall']
             
-            if pre_recall < metric['val_recall']:
+            if manager.info['best_recall'] <= metric['val_recall']:
                 patience = 0
             else:
                 patience += 1
@@ -118,19 +125,23 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             manager.clean()
         
         if manager.counter >= args.max_step:
-            break            
+            break
 
-def test(loader, model, sess, manager:Manager, args):
+        
+
+def test(loader, model, manager:Manager, args):
     manager.logger.info(f'testing!')
 
-    restore_path = osp.join(args.save_path, 'model.ckpt')
-    restore(restore_path, sess)
+    gpu_options = tf.GPUOptions(allow_growth=True)
+    with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
+        restore_path = osp.join(args.save_path, 'model.ckpt')
+        restore(restore_path, sess)
 
-    metric = eval(loader, model, sess, manager, args, name='test')
-    manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
+        metric = eval(loader, model, sess, manager, args, name='test')
+        manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
 
-    manager.info.update(metric)
-    manager.record(manager.info)
+        manager.info.update(metric)
+        manager.record(manager.info)
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -151,6 +162,9 @@ def get_args():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--ISCS', action='store_true', default=False)
     parser.add_argument('--vqvae', action='store_true', default=False)
+    parser.add_argument('--upper_boundry', type=float, default=1)
+    parser.add_argument('--lower_boundry', type=float, default=-1)
+    parser.add_argument('--stddev', type=float, default=0.1)
 
     # run
     parser.add_argument('--exp_name', type=str, default='test')
@@ -160,7 +174,7 @@ def get_args():
     parser.add_argument('--seed', type=int, default=19)
     parser.add_argument('--coef', type=float,default=0.0)
     parser.add_argument('--topN', type=int, default=50)
-    parser.add_argument('--max_step', type=int, default=100000)
+    parser.add_argument('--max_step', type=int, default=300000)
     args = parser.parse_args()
 
     return args
@@ -244,7 +258,7 @@ def main(_):
 
         train(train_loader, val_loader, model, sess, manager, args)
 
-        test(test_loader, model, sess, manager, args)
+        test(test_loader, model, manager, args)
 
 if __name__ == '__main__':
     tf.app.run()
