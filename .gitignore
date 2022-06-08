@@ -11,3 +11,4 @@ data/tc_iqi/*
 *.zip
 save/*
 *tmp
+test.py

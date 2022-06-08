@@ -50,7 +50,7 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
         if len(history_items) == 0:
             continue
         
-        history_embeddings = model.get_history_embeddings(sess, [history_items, history_mask, domain_ids])[0]
+        history_embeddings = model.get_history_embeddings(sess, [history_items, history_mask, domain_ids, len(user_ids)])[0]
 
         history_embeddings = np.array(history_embeddings)
 
@@ -86,7 +86,7 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
         inputs = [
             user_ids, item_ids, domain_ids,
             history_items, history_mask,
-            args.lr, args.dropout, args.batch_size
+            args.lr, args.dropout, len(user_ids)
         ]
 
         loss = model.run(sess, inputs)
