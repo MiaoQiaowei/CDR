@@ -275,7 +275,7 @@ class Model:
         return X   
     
     def restore(self, path, sess):
-        saver = saver = tf.train.Saver()
+        saver = tf.train.Saver()
         saver.restore(sess, path)
     
     def save(self, path, sess):

@@ -1,6 +1,6 @@
 dataset=ml_nf
 model=DNN
-domain_index=0
+domain_index=1
 exp_name=test
 # step 1-domain 0
 CUDA_VISIBLE_DEVICES=1 python3 train.py \

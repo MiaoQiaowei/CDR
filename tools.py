@@ -3,6 +3,7 @@ import os.path as osp
 import tensorflow as tf
 import numpy as np
 from tensorflow.python import pywrap_tensorflow
+from torch import var
 
 
 def get_data_info(args):
@@ -58,9 +59,13 @@ def get_model(args):
 
     return model    
 
-def restore(path, sess):
+def restore(path, sess, ignore=[]):
     vars = tf.contrib.framework.get_variables_to_restore()
-    variables_to_resotre = [v for v in vars if 'embedding' not in v.name]
+    variables_to_resotre = []
+    for v in vars:
+        if not any( name in v.name for name in ignore):
+            variables_to_resotre.append(v)
+    
     saver = tf.train.Saver(variables_to_resotre)
     saver.restore(sess, path)
     

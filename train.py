@@ -76,6 +76,7 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
     return metric
 
 def train(train_loader, val_loader, model, sess, manager:Manager, args):
+    pre_recall = 0.0
     patience = 0
 
     for X, Y in tqdm(train_loader):
@@ -118,6 +119,13 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
                 patience += 1
                 if patience > args.patience:
                     break
+            # if pre_recall <= metric['val_recall']:
+            #     pre_recall = metric['val_recall']
+            #     patience = 0
+            # else:
+            #     patience += 1
+            #     if patience > args.patience:
+            #         break
 
             manager.clean()
         
@@ -163,7 +171,6 @@ def get_args():
 
     # run
     parser.add_argument('--exp_name', type=str, default='test')
-    parser.add_argument('--train', action='store_true', default=True)
     parser.add_argument('--only_test_last_one', action='store_true', default=False)
     parser.add_argument('--patience', type=int, default=3)
     parser.add_argument('--seed', type=int, default=19)
@@ -249,7 +256,8 @@ def main(_):
 
         if args.restore_path != '':
             manager.logger.info(f'restore model from {args.restore_path}')
-            restore(args.restore_path, sess)
+            # restore(args.restore_path, sess)
+            restore(args.restore_path, sess, ignore=['embedding'])
 
         train(train_loader, val_loader, model, sess, manager, args)
 
