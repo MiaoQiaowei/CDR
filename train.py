@@ -8,8 +8,6 @@ import tensorflow as tf
 import time
 import os.path as osp
 
-from torch import float64
-
 from data_iterator import DataIterator
 from manager import Manager
 from tqdm import tqdm
@@ -35,7 +33,7 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
     except:
         gpu_index = faiss.IndexFlatIP(args.embedding_dim)
         gpu_index.add(embedding_table)
-
+    
     metric = {
         f'{name}_num':0.,
         f'{name}_recall':0.0,
@@ -96,7 +94,9 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
         if manager.global_step % args.test_iter== 0:
 
             manager.logger.info(f'step:{manager.global_step}')
+
             metric = eval(val_loader, model, sess, manager, args, name='val')
+            
             metric['train_loss'] = manager.avg()
             manager.info['lowerboundary'] = float(model.lowerboundary)
             manager.info['upperboundary'] = float(model.upperboundary)
@@ -165,6 +165,7 @@ def get_args():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--ISCS', action='store_true', default=False)
     parser.add_argument('--vqvae', action='store_true', default=False)
+    parser.add_argument('--self_attn', action='store_true', default=False)
     parser.add_argument('--upper_boundary', type=float, default=1)
     parser.add_argument('--lower_boundary', type=float, default=-1)
     parser.add_argument('--stddev', type=float, default=0.1)
@@ -268,5 +269,4 @@ if __name__ == '__main__':
 
     
     
-
 

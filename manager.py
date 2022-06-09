@@ -1,6 +1,5 @@
 from pymongo import MongoClient
 from tensorboardX import SummaryWriter
-import tensorflow as tf
 from tools import make_dir
 
 import datetime
@@ -32,15 +31,21 @@ class AvgManager():
 
 class LogManager():
     def __init__(self, logger_name, logger_path):
-
+        logging.basicConfig(level=logging.INFO)
+        
         self.logger=logging.getLogger(logger_name)
         
         formatter = logging.Formatter('%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
-        file_handler = logging.FileHandler(logger_path)
+        file_handler = logging.FileHandler(logger_path, encoding='UTF-8')
         file_handler.setLevel(logging.INFO)
         file_handler.setFormatter(formatter)
+
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+
         self.logger.addHandler(file_handler)
+        self.logger.addHandler(console)
 
 class Manager(AvgManager):
     def __init__(self, file_path):
