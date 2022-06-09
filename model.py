@@ -236,8 +236,7 @@ class DNN(Model):
 
             self.upperboundary_tf = tf.reduce_max(histroy_item_embeddings)
             self.lowerboundary_tf = tf.reduce_min(histroy_item_embeddings)
-            # self.stddev_tf = tf.math.reduce_std(histroy_item_embeddings)
-            self.stddev_tf = tf.constant([0])
+            self.stddev_tf = tf.math.reduce_std(histroy_item_embeddings)
 
             # histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
             histroy_item_embeddings *= tf.reshape(mask, (-1, self.max_len, 1))
