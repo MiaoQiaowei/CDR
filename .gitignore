@@ -12,3 +12,5 @@ data/tc_iqi/*
 save/*
 *tmp
 test.py
+papers/*
+*papers

@@ -93,7 +93,7 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
 
         manager.add(loss)
 
-        if manager.global_step % args.test_iter == 0:
+        if manager.global_step % args.test_iter== 0:
 
             manager.logger.info(f'step:{manager.global_step}')
             metric = eval(val_loader, model, sess, manager, args, name='val')
@@ -256,7 +256,7 @@ def main(_):
 
         if args.restore_path != '':
             manager.logger.info(f'restore model from {args.restore_path}')
-            # restore(args.restore_path, sess)
+
             restore(args.restore_path, sess, ignore=['embedding'])
 
         train(train_loader, val_loader, model, sess, manager, args)

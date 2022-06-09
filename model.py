@@ -82,7 +82,6 @@ class Model:
             stddev = args.stddev
 
             self.embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=mean, stddev=stddev,dtype= tf.float32), trainable=True, name='embedding_table')
-            # self.embedding_table = tf.get_variable("embedding_table", [self.item_count, self.embedding_dim], trainable=True)
 
             self.embedding_table_bias = tf.Variable(tf.random_normal([self.item_count], mean=0.0, stddev=0.1,dtype= tf.float32), trainable=True, name='embedding_table_bias')
 
@@ -135,7 +134,6 @@ class Model:
                 num_classes=self.item_count
             )
 
-            # loss *= tf.cast(tf.gather(mask, 0), tf.float32)
             loss = tf.reduce_mean(loss)
  
         return loss  
@@ -299,7 +297,7 @@ class Model:
         '''
         估算每个x在train set 中的比例（在batch 中）
         '''
-        # bs = tf.shape(x)[0]
+
         slen = self.args.max_len
         dim = self.args.embedding_dim
 
