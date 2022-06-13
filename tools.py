@@ -104,3 +104,9 @@ def get_trainable_variables(ignore_names=[]):
     variable_names = [v for v in tf.trainable_variables() if not any(name in v.name for name in ignore_names)]
     return variable_names
 
+def hash_embedding(x):
+    '''
+    np hash
+    '''
+    return 0
+

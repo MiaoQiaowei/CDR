@@ -1,7 +1,7 @@
 dataset=ml_nf
 model=DNN
-domain_index=0
-exp_name=$model-$dataset-$domain_index-vqvae-ISCS-self_attn
+domain_index=1
+exp_name=ISCS-vqvae_$model-$dataset-$domain_index
 
 # step 1-domain 0
 CUDA_VISIBLE_DEVICES=0 python3 train.py \
@@ -10,10 +10,10 @@ CUDA_VISIBLE_DEVICES=0 python3 train.py \
     --model $model\
     --dropout 0.3\
     --embedding_dim 64\
-    --save_path save\
+    --save_path save_bias_false\
     --exp_name $exp_name\
     --domain_index $domain_index \
     --vqvae \
     --ISCS \
-    --self_attn
-    # --restore_path save/DNN-ml_nf-vqvae-ISCS-0/model.ckpt\
+    --restore_path save_bias_false/ISCS-vqvae_DNN-ml_nf-0/model.ckpt
+

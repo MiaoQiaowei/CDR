@@ -1,6 +1,45 @@
 import tensorflow as tf
+import numpy as np
 import os.path as osp
 import os
+
+def get_cos_similarity(x1, x2, dim_num=4, eye=True):
+        #[num, dim]
+        if dim_num == 4:
+            (num , domain_num, slen, dim) = x1.get_shape().as_list()
+        else:
+            (num,dim) = x1.get_shape().as_list()
+        x1 = tf.reshape(x1, [-1, dim])
+        x2 = tf.reshape(x2, [-1, dim])
+        # num = x1.get_shape()[0]
+        num = 128
+
+        X1_norm = tf.sqrt(tf.reduce_sum(tf.square(x1), axis=1)) #[num ,1]
+        X2_norm = tf.sqrt(tf.reduce_sum(tf.square(x2), axis=1))
+        # 内积
+        X1_X2 = tf.matmul(x1, tf.transpose(x1)) #[num, num]
+        X1_X2_norm = tf.matmul(tf.reshape(X1_norm,[-1,1]),tf.reshape(X2_norm,[1,-1]))
+        # 计算余弦距离
+        cos = X1_X2/X1_X2_norm
+
+        if eye is True:
+            # diag = tf.linalg.band_part(cos,0,0)
+            if dim_num == 4:
+            # (num , domain_num, slen, dim) = x1.get_shape().as_list()
+                other_dim = num*domain_num*slen
+            else:
+                # (num,dim) = x1.get_shape().as_list()
+                other_dim = num
+            mask = tf.eye(num_rows=other_dim, num_columns=other_dim)
+            cos = tf.reduce_sum(tf.abs(mask*cos))/tf.reduce_sum(mask)
+            # cos = tf.reduce_sum(mask*cos)/tf.reduce_sum(mask)
+        else:
+            diag = tf.linalg.band_part(cos,0,-1)
+            item_nums = num*(num-1)/2
+            cos = (tf.reduce_sum(tf.abs(diag))-num)/item_nums
+            # cos = (tf.reduce_sum(diag)-num)/item_nums
+            cos = tf.reduce_mean(cos)
+        return cos
 
 class Model:
     def __init__(self, args):
@@ -33,7 +72,7 @@ class Model:
         # code book
         with tf.name_scope('code_book_vars'):
             self.code_book = tf.get_variable("code_book", [self.embedding_num, self.embedding_dim], trainable=True,
-                                            initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.float32))
+                                            initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.dtypes.float32))
 
         # embedding table
         with tf.name_scope('embedding_table_vars'):
@@ -44,7 +83,7 @@ class Model:
 
             self.embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=mean, stddev=stddev,dtype= tf.float32), trainable=True, name='embedding_table')
 
-            self.embedding_table_bias = tf.Variable(tf.random_normal([self.item_count], mean=0.0, stddev=0.1,dtype= tf.float32), trainable=True, name='embedding_table_bias')
+            self.embedding_table_bias = tf.Variable(tf.zeros([self.item_count], dtype=tf.float32), trainable=False, name='embedding_table_bias')
 
     def create_forward_path(self, args):
         raise NotImplementedError
@@ -136,7 +175,117 @@ class Model:
         quantized = tf.matmul(encodings, code_book)
         quantized = tf.reshape(quantized, input_shape)
         return quantized, encodings
-  
+
+    # def attention(self, x):
+    #     bs = self.args.batch_size
+    #     slen = self.args.max_len
+    #     dim = self.args.embedding_dim
+
+    #     flattened = tf.reshape(x, [-1, dim])
+        
+    #     # get IS qkv
+    #     IS_query = tf.layers.dense(flattened, dim, activation=None, name='IS_q')
+    #     IS_key = tf.layers.dense(flattened, dim, activation=None, name=f'IS_k')
+    #     IS_value = tf.layers.dense(flattened, dim, activation=None, name=f'IS_v')
+
+    #     # reshape qkv 2 [bs, slen, dim]
+    #     IS_query_ = tf.reshape(IS_query, [bs, slen,dim])
+    #     IS_key_ = tf.reshape(IS_key, [bs, slen, dim])
+    #     IS_value_ = tf.reshape(IS_value, [bs, slen,dim])
+
+    #     # get IS atten
+    #     IS_kq = tf.matmul(IS_key_, tf.transpose(IS_query_,perm=[0,1,3,2])) # [bs, domain_num, slen, slen]
+    #     IS_A = tf.nn.softmax(IS_kq, axis=-1) #only use softmax on the last dim
+    #     Z = tf.matmul(IS_A, IS_value_) # [bs, domain_num, slen, dim]
+    #     Z = tf.reshape(Z, [bs,  slen, dim])
+
+    #     # get CS qkv
+    #     CS_query = tf.layers.dense(flattened, dim, activation=None, name=f'CS_q')
+    #     CS_key = tf.layers.dense(flattened, dim, activation=None, name=f'CS_k')
+    #     CS_value = tf.layers.dense(flattened, dim, activation=None, name=f'CS_v')
+
+    #     other_dim = slen
+    #     CS_kq = tf.matmul( CS_key, tf.transpose(CS_query))
+
+    #     index = [
+    #         [i for t in range(other_dim)] for i in range(self.batch_size)
+    #     ]
+
+    #     one_hot = tf.one_hot(index, depth=bs, on_value=1.0)
+    #     one_hot = tf.reshape(one_hot, [bs*other_dim, -1])
+    #     mask = one_hot @ tf.transpose(one_hot,[1,0])
+    #     CS_kq_ = (1-mask) * CS_kq - mask* np.inf
+    #     inf = tf.where(mask>0, tf.fill([bs*other_dim, bs*other_dim],-np.inf), tf.fill([bs*other_dim, bs*other_dim],0.0))
+    #     CS_kq_= (1-mask) * CS_kq + inf
+
+    #     CS_A = tf.nn.softmax(CS_kq_, axis=-1)#only use softmax on the last dim
+        
+    #     X = tf.matmul(CS_A, CS_value)
+    #     X = tf.reshape(X,[bs,  slen, dim])
+    #     return Z, X
+    
+    # def _IS(self, x):
+    #     bs = self.args.batch_size
+    #     slen = self.args.max_len
+    #     dim = self.args.embedding_dim
+        
+    #     flattened = tf.reshape(x, [-1, dim])
+
+    #     other_dim=slen
+        
+    #     # get IS qkv
+    #     IS_query = tf.layers.dense(flattened, dim, activation=None, name='IS_q')
+    #     IS_key = tf.layers.dense(flattened, dim, activation=None, name=f'IS_k')
+    #     # IS_value = tf.layers.dense(flattened, dim, activation=None, name=f'IS_v')
+
+    #     index = [
+    #         [i for t in range(slen)] for i in range(self.batch_size)
+    #     ]
+
+    #     one_hot = tf.one_hot(index, depth=bs, on_value=1.0)
+    #     one_hot = tf.reshape(one_hot, [bs*slen, -1])
+    #     mask = one_hot @ tf.transpose(one_hot,[1,0])
+
+    #     # get IS atten
+    #     IS_kq = tf.matmul(IS_key, tf.transpose(IS_query)) # [bs*domain_num*slen, bs*domain_num*slen]
+    #     IS_kq = mask*IS_kq - (1-mask)*np.inf
+    #     IS_A = tf.nn.softmax(IS_kq, axis=-1) #only use softmax on the last dim
+
+    #     Z = tf.matmul(IS_A, flattened) # [bs, domain_num, slen, dim]
+    #     Z = tf.reshape(Z, [bs,  slen, dim])
+    #     return Z
+    
+    # def _CS(self, x):
+    #     bs = self.args.batch_size
+    #     slen = self.args.max_len
+    #     dim = self.args.embedding_dim
+
+    #     bs,domain_num,slen,dim = x.get_shape()
+    #     flattened = tf.reshape(x, [-1, dim])
+    #     bs = tf.shape(x)[0]
+
+    #     # get CS qkv
+    #     CS_query = tf.layers.dense(flattened, dim, activation=None, name=f'CS_q')
+    #     CS_key = tf.layers.dense(flattened, dim, activation=None, name=f'CS_k')
+    #     # CS_value = tf.layers.dense(flattened, dim, activation=None, name=f'CS_v')
+
+    #     other_dim = slen
+    #     CS_kq = tf.matmul( CS_key, tf.transpose(CS_query))
+
+    #     index = [
+    #         [i for t in range(other_dim)] for i in range(self.batch_size)
+    #     ]
+
+    #     one_hot = tf.one_hot(index, depth=bs, on_value=1.0)
+    #     one_hot = tf.reshape(one_hot, [bs*other_dim, -1])
+    #     mask = one_hot @ tf.transpose(one_hot,[1,0])
+    #     CS_kq_ = (1-mask) * CS_kq - mask* np.inf
+
+    #     CS_A = tf.nn.softmax(CS_kq_, axis=-1)#only use softmax on the last dim
+        
+    #     X = tf.matmul(CS_A, flattened)
+    #     X = tf.reshape(X,[bs,  slen, dim])
+    #     return X   
     def qkv(self, q, k, v, dim):
         with tf.variable_scope('qkv',reuse=tf.AUTO_REUSE):
             q = tf.layers.dense(q, dim, activation=None, name='q')
@@ -157,7 +306,7 @@ class Model:
 
             q, k, v = self.qkv(flattened, flattened, flattened, dim)
 
-            qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5) # bs*slen , bs*slen
+            qk = q @ tf.transpose(k) # bs*slen , bs*slen
 
             mask = tf.range(slen)
             mask = tf.expand_dims(mask,axis=1)
@@ -170,7 +319,7 @@ class Model:
 
             qk = tf.where(bool_mask, x=qk, y=inf_mask)
 
-            A = tf.nn.softmax(qk, -1) # bs*slen, bs*slen
+            A = tf.nn.softmax(qk, axis=-1) # bs*slen, bs*slen
             CS = A@v
 
             return tf.reshape(CS, [-1, slen, dim])
@@ -188,7 +337,7 @@ class Model:
 
             q, k, v = self.qkv(flattened, code_book, code_book, dim)
 
-            qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5) # bs*slen , embedding_num
+            qk = q @ tf.transpose(k) # bs*slen , embedding_num
             IS = qk @ v # bs*slen , dim
 
             return tf.reshape(IS, [-1, slen, dim])
@@ -202,20 +351,6 @@ class Model:
             os.makedirs(path)
         saver = tf.train.Saver()
         saver.save(sess, osp.join(path, 'model.ckpt'))
-    
-    def self_attn(self, embedding):
-        '''
-        embedding: [bs, max_len, dim]
-        '''
-        embedding = tf.reshape(embedding, [-1, self.embedding_dim])
-        q, k, v = self.qkv(q=embedding, k=embedding, v=embedding, dim=self.embedding_dim)
-        qk = q @ tf.transpose(k) / (self.embedding_dim ** 0.5)
-        a = tf.nn.softmax(qk, -1)
-        attn_embedding = a @ v
-        attn_embedding = tf.reshape(attn_embedding, [-1, self.max_len, self.embedding_dim])
-        return attn_embedding
-
-
 
 
 class DNN(Model):
@@ -242,13 +377,8 @@ class DNN(Model):
             histroy_item_embeddings *= tf.reshape(mask, (-1, self.max_len, 1))
 
             mask = tf.reshape(mask, [-1,  self.max_len])
-            masks = tf.concat([tf.expand_dims(mask, -1) for _ in range(self.embedding_dim)], axis=-1)
-
             histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.max_len, self.embedding_dim])
-
-            if args.self_attn:
-                histroy_item_embeddings = self.self_attn(histroy_item_embeddings)
-
+            masks = tf.concat([tf.expand_dims(mask, -1) for _ in range(self.embedding_dim)], axis=-1)
             histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
 
             # use vqvae
@@ -297,7 +427,7 @@ class DNN(Model):
             self.batch_size:inputs[7]
         }
 
-        loss, _ , upperboundary, lowerboundary, stddev = sess.run(
+        loss, _ , upperboundary, lowerboundary, stddev= sess.run(
             [self.loss, self.opt, self.upperboundary_tf, self.lowerboundary_tf, self.stddev_tf],
             feed_dict=feed_dict
         )

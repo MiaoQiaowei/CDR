@@ -1,0 +1,205 @@
+2022-06-09 19:53:01,683 - train.py[line:211] - INFO: max_iter: 300000
+2022-06-09 19:53:01,684 - train.py[line:214] - INFO: {'ISCS': True,
+ 'batch_size': 128,
+ 'begin_time': '2022-06-09_19:52:59',
+ 'best_recall': 0.0,
+ 'coef': 0.0,
+ 'data_path': 'data',
+ 'dataset': 'ml_nf',
+ 'domain_index': 0,
+ 'domain_num': 1,
+ 'dropout': 0.3,
+ 'embedding_dim': 64,
+ 'embedding_num': 64,
+ 'exp_name': 'DNN-ml_nf-0-vqvae-ISCS-self_attn_test',
+ 'item_count': 5579,
+ 'lower_boundary': -1,
+ 'lr': 0.001,
+ 'max_len': 20,
+ 'max_step': 300000,
+ 'model': 'DNN',
+ 'only_test_last_one': False,
+ 'patience': 3,
+ 'restore_path': '',
+ 'save_path': 'save/DNN-ml_nf-0-vqvae-ISCS-self_attn_test',
+ 'seed': 19,
+ 'self_attn': True,
+ 'stddev': 0.1,
+ 'test_iter': 500,
+ 'topN': 50,
+ 'upper_boundary': 1,
+ 'vqvae': True}
+2022-06-09 19:53:04,137 - train.py[line:255] - INFO: train begin
+2022-06-09 19:53:14,839 - train.py[line:96] - INFO: step:500
+2022-06-09 19:53:27,935 - train.py[line:105] - INFO: val_recall: 0.187001, val_ndcg: 0.227102, val_hit_rate: 0.635125, train_loss: 7.277634
+2022-06-09 19:53:27,935 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.11441393196582794
+2022-06-09 19:53:38,520 - train.py[line:96] - INFO: step:1000
+2022-06-09 19:53:50,742 - train.py[line:105] - INFO: val_recall: 0.233495, val_ndcg: 0.253779, val_hit_rate: 0.710387, train_loss: 6.471007
+2022-06-09 19:53:50,743 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.1256198287010193
+2022-06-09 19:54:01,373 - train.py[line:96] - INFO: step:1500
+2022-06-09 19:54:14,793 - train.py[line:105] - INFO: val_recall: 0.265338, val_ndcg: 0.274826, val_hit_rate: 0.748341, train_loss: 6.228947
+2022-06-09 19:54:14,793 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.1356062889099121
+2022-06-09 19:54:25,544 - train.py[line:96] - INFO: step:2000
+2022-06-09 19:54:38,409 - train.py[line:105] - INFO: val_recall: 0.274856, val_ndcg: 0.278851, val_hit_rate: 0.760519, train_loss: 6.077129
+2022-06-09 19:54:38,410 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.1474286913871765
+2022-06-09 19:54:48,824 - train.py[line:96] - INFO: step:2500
+2022-06-09 19:55:01,963 - train.py[line:105] - INFO: val_recall: 0.280426, val_ndcg: 0.285182, val_hit_rate: 0.766995, train_loss: 6.003061
+2022-06-09 19:55:01,963 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.1582622230052948
+2022-06-09 19:55:12,671 - train.py[line:96] - INFO: step:3000
+2022-06-09 19:55:25,592 - train.py[line:105] - INFO: val_recall: 0.292115, val_ndcg: 0.293593, val_hit_rate: 0.776242, train_loss: 5.943953
+2022-06-09 19:55:25,592 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.164985790848732
+2022-06-09 19:55:36,127 - train.py[line:96] - INFO: step:3500
+2022-06-09 19:55:48,850 - train.py[line:105] - INFO: val_recall: 0.294620, val_ndcg: 0.297166, val_hit_rate: 0.779561, train_loss: 5.867059
+2022-06-09 19:55:48,850 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.17118577659130096
+2022-06-09 19:55:59,486 - train.py[line:96] - INFO: step:4000
+2022-06-09 19:56:11,866 - train.py[line:105] - INFO: val_recall: 0.300192, val_ndcg: 0.301941, val_hit_rate: 0.788131, train_loss: 5.832016
+2022-06-09 19:56:11,866 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.18305380642414093
+2022-06-09 19:56:22,331 - train.py[line:96] - INFO: step:4500
+2022-06-09 19:56:34,470 - train.py[line:105] - INFO: val_recall: 0.303790, val_ndcg: 0.305326, val_hit_rate: 0.793543, train_loss: 5.790123
+2022-06-09 19:56:34,471 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.19365514814853668
+2022-06-09 19:56:45,078 - train.py[line:96] - INFO: step:5000
+2022-06-09 19:56:57,046 - train.py[line:105] - INFO: val_recall: 0.310621, val_ndcg: 0.311033, val_hit_rate: 0.800696, train_loss: 5.749365
+2022-06-09 19:56:57,046 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.2012137919664383
+2022-06-09 19:57:07,521 - train.py[line:96] - INFO: step:5500
+2022-06-09 19:57:19,947 - train.py[line:105] - INFO: val_recall: 0.313781, val_ndcg: 0.313344, val_hit_rate: 0.805045, train_loss: 5.738639
+2022-06-09 19:57:19,947 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.20973120629787445
+2022-06-09 19:57:30,364 - train.py[line:96] - INFO: step:6000
+2022-06-09 19:57:42,547 - train.py[line:105] - INFO: val_recall: 0.318669, val_ndcg: 0.318794, val_hit_rate: 0.812617, train_loss: 5.710926
+2022-06-09 19:57:42,547 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.2213079035282135
+2022-06-09 19:57:53,004 - train.py[line:96] - INFO: step:6500
+2022-06-09 19:58:05,095 - train.py[line:105] - INFO: val_recall: 0.321608, val_ndcg: 0.321382, val_hit_rate: 0.814614, train_loss: 5.669267
+2022-06-09 19:58:05,096 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.23063787817955017
+2022-06-09 19:58:15,751 - train.py[line:96] - INFO: step:7000
+2022-06-09 19:58:28,139 - train.py[line:105] - INFO: val_recall: 0.323485, val_ndcg: 0.321883, val_hit_rate: 0.815806, train_loss: 5.664554
+2022-06-09 19:58:28,139 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.2384883016347885
+2022-06-09 19:58:38,697 - train.py[line:96] - INFO: step:7500
+2022-06-09 19:58:51,288 - train.py[line:105] - INFO: val_recall: 0.326995, val_ndcg: 0.328415, val_hit_rate: 0.821219, train_loss: 5.622272
+2022-06-09 19:58:51,289 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.24779725074768066
+2022-06-09 19:59:01,954 - train.py[line:96] - INFO: step:8000
+2022-06-09 19:59:15,010 - train.py[line:105] - INFO: val_recall: 0.331853, val_ndcg: 0.330499, val_hit_rate: 0.826825, train_loss: 5.605032
+2022-06-09 19:59:15,010 - train.py[line:106] - INFO: lowerboundary:-1  upperboundary:1 stddev:0.2570571005344391
+2022-06-09 19:59:25,881 - train.py[line:96] - INFO: step:8500
+2022-06-09 19:59:39,192 - train.py[line:105] - INFO: val_recall: 0.334366, val_ndcg: 0.333495, val_hit_rate: 0.831432, train_loss: 5.586055
+2022-06-09 19:59:39,192 - train.py[line:106] - INFO: lowerboundary:-1.018222451210022  upperboundary:1 stddev:0.26850736141204834
+2022-06-09 19:59:49,865 - train.py[line:96] - INFO: step:9000
+2022-06-09 20:00:02,854 - train.py[line:105] - INFO: val_recall: 0.336599, val_ndcg: 0.333657, val_hit_rate: 0.831722, train_loss: 5.584846
+2022-06-09 20:00:02,854 - train.py[line:106] - INFO: lowerboundary:-1.219814658164978  upperboundary:1 stddev:0.2724123001098633
+2022-06-09 20:00:13,584 - train.py[line:96] - INFO: step:9500
+2022-06-09 20:00:26,713 - train.py[line:105] - INFO: val_recall: 0.337780, val_ndcg: 0.336581, val_hit_rate: 0.832657, train_loss: 5.553817
+2022-06-09 20:00:26,714 - train.py[line:106] - INFO: lowerboundary:-1.219814658164978  upperboundary:1.061883807182312 stddev:0.2890649735927582
+2022-06-09 20:00:37,504 - train.py[line:96] - INFO: step:10000
+2022-06-09 20:00:49,939 - train.py[line:105] - INFO: val_recall: 0.340270, val_ndcg: 0.338017, val_hit_rate: 0.836910, train_loss: 5.533531
+2022-06-09 20:00:49,940 - train.py[line:106] - INFO: lowerboundary:-1.219814658164978  upperboundary:1.072974443435669 stddev:0.29766976833343506
+2022-06-09 20:01:00,607 - train.py[line:96] - INFO: step:10500
+2022-06-09 20:01:12,501 - train.py[line:105] - INFO: val_recall: 0.340425, val_ndcg: 0.338849, val_hit_rate: 0.836104, train_loss: 5.531648
+2022-06-09 20:01:12,501 - train.py[line:106] - INFO: lowerboundary:-1.219814658164978  upperboundary:1.1099426746368408 stddev:0.3101429343223572
+2022-06-09 20:01:23,210 - train.py[line:96] - INFO: step:11000
+2022-06-09 20:01:35,245 - train.py[line:105] - INFO: val_recall: 0.342314, val_ndcg: 0.339578, val_hit_rate: 0.837393, train_loss: 5.505753
+2022-06-09 20:01:35,245 - train.py[line:106] - INFO: lowerboundary:-1.219814658164978  upperboundary:1.1099426746368408 stddev:0.3238316774368286
+2022-06-09 20:01:45,734 - train.py[line:96] - INFO: step:11500
+2022-06-09 20:01:58,091 - train.py[line:105] - INFO: val_recall: 0.343684, val_ndcg: 0.341362, val_hit_rate: 0.836942, train_loss: 5.495131
+2022-06-09 20:01:58,091 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.1099426746368408 stddev:0.3381028473377228
+2022-06-09 20:02:08,588 - train.py[line:96] - INFO: step:12000
+2022-06-09 20:02:21,002 - train.py[line:105] - INFO: val_recall: 0.347312, val_ndcg: 0.344611, val_hit_rate: 0.840647, train_loss: 5.488647
+2022-06-09 20:02:21,003 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.2293938398361206 stddev:0.33958983421325684
+2022-06-09 20:02:31,581 - train.py[line:96] - INFO: step:12500
+2022-06-09 20:02:43,715 - train.py[line:105] - INFO: val_recall: 0.347184, val_ndcg: 0.344574, val_hit_rate: 0.844706, train_loss: 5.489653
+2022-06-09 20:02:43,715 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.2293938398361206 stddev:0.34479522705078125
+2022-06-09 20:02:53,918 - train.py[line:96] - INFO: step:13000
+2022-06-09 20:03:06,911 - train.py[line:105] - INFO: val_recall: 0.349391, val_ndcg: 0.347123, val_hit_rate: 0.846317, train_loss: 5.460842
+2022-06-09 20:03:06,912 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.4633450508117676 stddev:0.3546670079231262
+2022-06-09 20:03:17,618 - train.py[line:96] - INFO: step:13500
+2022-06-09 20:03:31,199 - train.py[line:105] - INFO: val_recall: 0.350776, val_ndcg: 0.348070, val_hit_rate: 0.846801, train_loss: 5.453087
+2022-06-09 20:03:31,199 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.4633450508117676 stddev:0.36901089549064636
+2022-06-09 20:03:42,028 - train.py[line:96] - INFO: step:14000
+2022-06-09 20:03:55,142 - train.py[line:105] - INFO: val_recall: 0.349921, val_ndcg: 0.349224, val_hit_rate: 0.846479, train_loss: 5.452842
+2022-06-09 20:03:55,142 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.4633450508117676 stddev:0.3785242438316345
+2022-06-09 20:04:05,434 - train.py[line:96] - INFO: step:14500
+2022-06-09 20:04:18,731 - train.py[line:105] - INFO: val_recall: 0.351449, val_ndcg: 0.350505, val_hit_rate: 0.848766, train_loss: 5.444700
+2022-06-09 20:04:18,731 - train.py[line:106] - INFO: lowerboundary:-1.4349052906036377  upperboundary:1.4633450508117676 stddev:0.3845401406288147
+2022-06-09 20:04:29,735 - train.py[line:96] - INFO: step:15000
+2022-06-09 20:04:42,780 - train.py[line:105] - INFO: val_recall: 0.353360, val_ndcg: 0.351428, val_hit_rate: 0.850828, train_loss: 5.441836
+2022-06-09 20:04:42,780 - train.py[line:106] - INFO: lowerboundary:-1.5151808261871338  upperboundary:1.4710643291473389 stddev:0.3876318633556366
+2022-06-09 20:04:53,628 - train.py[line:96] - INFO: step:15500
+2022-06-09 20:05:06,453 - train.py[line:105] - INFO: val_recall: 0.356931, val_ndcg: 0.355575, val_hit_rate: 0.853728, train_loss: 5.437609
+2022-06-09 20:05:06,453 - train.py[line:106] - INFO: lowerboundary:-1.5521416664123535  upperboundary:1.4938533306121826 stddev:0.4018464684486389
+2022-06-09 20:05:16,638 - train.py[line:96] - INFO: step:16000
+2022-06-09 20:05:30,062 - train.py[line:105] - INFO: val_recall: 0.355497, val_ndcg: 0.355078, val_hit_rate: 0.854759, train_loss: 5.410273
+2022-06-09 20:05:30,062 - train.py[line:106] - INFO: lowerboundary:-1.5521416664123535  upperboundary:1.5434350967407227 stddev:0.4046522080898285
+2022-06-09 20:05:40,370 - train.py[line:96] - INFO: step:16500
+2022-06-09 20:05:52,607 - train.py[line:105] - INFO: val_recall: 0.358963, val_ndcg: 0.358399, val_hit_rate: 0.856273, train_loss: 5.414525
+2022-06-09 20:05:52,607 - train.py[line:106] - INFO: lowerboundary:-1.8859177827835083  upperboundary:1.6442430019378662 stddev:0.41773542761802673
+2022-06-09 20:06:03,549 - train.py[line:96] - INFO: step:17000
+2022-06-09 20:06:15,510 - train.py[line:105] - INFO: val_recall: 0.357566, val_ndcg: 0.358301, val_hit_rate: 0.854469, train_loss: 5.413395
+2022-06-09 20:06:15,511 - train.py[line:106] - INFO: lowerboundary:-1.8859177827835083  upperboundary:1.6442430019378662 stddev:0.43005597591400146
+2022-06-09 20:06:25,497 - train.py[line:96] - INFO: step:17500
+2022-06-09 20:06:39,535 - train.py[line:105] - INFO: val_recall: 0.357866, val_ndcg: 0.357607, val_hit_rate: 0.853985, train_loss: 5.411053
+2022-06-09 20:06:39,536 - train.py[line:106] - INFO: lowerboundary:-1.8859177827835083  upperboundary:1.6442430019378662 stddev:0.43005597591400146
+2022-06-09 20:06:49,762 - train.py[line:96] - INFO: step:18000
+2022-06-09 20:07:03,101 - train.py[line:105] - INFO: val_recall: 0.357847, val_ndcg: 0.357678, val_hit_rate: 0.853051, train_loss: 5.396138
+2022-06-09 20:07:03,101 - train.py[line:106] - INFO: lowerboundary:-1.8859177827835083  upperboundary:1.6442430019378662 stddev:0.4316927194595337
+2022-06-09 20:07:12,899 - train.py[line:96] - INFO: step:18500
+2022-06-09 20:07:25,802 - train.py[line:105] - INFO: val_recall: 0.360675, val_ndcg: 0.360621, val_hit_rate: 0.858013, train_loss: 5.394996
+2022-06-09 20:07:25,803 - train.py[line:106] - INFO: lowerboundary:-1.8859177827835083  upperboundary:1.6442430019378662 stddev:0.44053423404693604
+2022-06-09 20:07:36,143 - train.py[line:96] - INFO: step:19000
+2022-06-09 20:07:48,524 - train.py[line:105] - INFO: val_recall: 0.359412, val_ndcg: 0.359040, val_hit_rate: 0.855274, train_loss: 5.386410
+2022-06-09 20:07:48,525 - train.py[line:106] - INFO: lowerboundary:-1.8859177827835083  upperboundary:1.681563138961792 stddev:0.4515446424484253
+2022-06-09 20:07:58,018 - train.py[line:96] - INFO: step:19500
+2022-06-09 20:08:10,589 - train.py[line:105] - INFO: val_recall: 0.361495, val_ndcg: 0.360864, val_hit_rate: 0.857884, train_loss: 5.366948
+2022-06-09 20:08:10,589 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.4515446424484253
+2022-06-09 20:08:20,676 - train.py[line:96] - INFO: step:20000
+2022-06-09 20:08:33,571 - train.py[line:105] - INFO: val_recall: 0.360424, val_ndcg: 0.360369, val_hit_rate: 0.857304, train_loss: 5.372449
+2022-06-09 20:08:33,572 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.45588037371635437
+2022-06-09 20:08:43,432 - train.py[line:96] - INFO: step:20500
+2022-06-09 20:08:56,913 - train.py[line:105] - INFO: val_recall: 0.361242, val_ndcg: 0.363004, val_hit_rate: 0.859946, train_loss: 5.371271
+2022-06-09 20:08:56,914 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.4565485715866089
+2022-06-09 20:09:06,548 - train.py[line:96] - INFO: step:21000
+2022-06-09 20:09:20,322 - train.py[line:105] - INFO: val_recall: 0.362044, val_ndcg: 0.362865, val_hit_rate: 0.859817, train_loss: 5.372996
+2022-06-09 20:09:20,322 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.4785577356815338
+2022-06-09 20:09:30,855 - train.py[line:96] - INFO: step:21500
+2022-06-09 20:09:45,416 - train.py[line:105] - INFO: val_recall: 0.361100, val_ndcg: 0.362608, val_hit_rate: 0.858689, train_loss: 5.368733
+2022-06-09 20:09:45,416 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.4785577356815338
+2022-06-09 20:09:55,853 - train.py[line:96] - INFO: step:22000
+2022-06-09 20:10:09,724 - train.py[line:105] - INFO: val_recall: 0.362171, val_ndcg: 0.365372, val_hit_rate: 0.859849, train_loss: 5.380013
+2022-06-09 20:10:09,724 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.480074942111969
+2022-06-09 20:10:20,486 - train.py[line:96] - INFO: step:22500
+2022-06-09 20:10:33,720 - train.py[line:105] - INFO: val_recall: 0.363232, val_ndcg: 0.362255, val_hit_rate: 0.859205, train_loss: 5.364514
+2022-06-09 20:10:33,720 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.480074942111969
+2022-06-09 20:10:44,070 - train.py[line:96] - INFO: step:23000
+2022-06-09 20:10:56,392 - train.py[line:105] - INFO: val_recall: 0.365182, val_ndcg: 0.364963, val_hit_rate: 0.860332, train_loss: 5.356466
+2022-06-09 20:10:56,393 - train.py[line:106] - INFO: lowerboundary:-2.0384926795959473  upperboundary:2.275353193283081 stddev:0.489231139421463
+2022-06-09 20:11:07,041 - train.py[line:96] - INFO: step:23500
+2022-06-09 20:11:19,598 - train.py[line:105] - INFO: val_recall: 0.365832, val_ndcg: 0.365841, val_hit_rate: 0.863844, train_loss: 5.339273
+2022-06-09 20:11:19,598 - train.py[line:106] - INFO: lowerboundary:-2.2045154571533203  upperboundary:2.275353193283081 stddev:0.489231139421463
+2022-06-09 20:11:30,273 - train.py[line:96] - INFO: step:24000
+2022-06-09 20:11:43,770 - train.py[line:105] - INFO: val_recall: 0.364581, val_ndcg: 0.365220, val_hit_rate: 0.863007, train_loss: 5.360144
+2022-06-09 20:11:43,770 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.275353193283081 stddev:0.4898982048034668
+2022-06-09 20:11:53,728 - train.py[line:96] - INFO: step:24500
+2022-06-09 20:12:07,615 - train.py[line:105] - INFO: val_recall: 0.366241, val_ndcg: 0.365873, val_hit_rate: 0.862620, train_loss: 5.346444
+2022-06-09 20:12:07,616 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.275353193283081 stddev:0.4944479763507843
+2022-06-09 20:12:17,747 - train.py[line:96] - INFO: step:25000
+2022-06-09 20:12:32,045 - train.py[line:105] - INFO: val_recall: 0.367975, val_ndcg: 0.366489, val_hit_rate: 0.863683, train_loss: 5.341573
+2022-06-09 20:12:32,045 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5121809840202332
+2022-06-09 20:12:42,624 - train.py[line:96] - INFO: step:25500
+2022-06-09 20:12:56,119 - train.py[line:105] - INFO: val_recall: 0.366583, val_ndcg: 0.366291, val_hit_rate: 0.863458, train_loss: 5.333296
+2022-06-09 20:12:56,119 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5121809840202332
+2022-06-09 20:13:06,517 - train.py[line:96] - INFO: step:26000
+2022-06-09 20:13:19,306 - train.py[line:105] - INFO: val_recall: 0.366760, val_ndcg: 0.366782, val_hit_rate: 0.863039, train_loss: 5.332279
+2022-06-09 20:13:19,306 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5121809840202332
+2022-06-09 20:13:29,334 - train.py[line:96] - INFO: step:26500
+2022-06-09 20:13:41,529 - train.py[line:105] - INFO: val_recall: 0.369869, val_ndcg: 0.369677, val_hit_rate: 0.867872, train_loss: 5.328438
+2022-06-09 20:13:41,529 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5202276110649109
+2022-06-09 20:13:52,240 - train.py[line:96] - INFO: step:27000
+2022-06-09 20:14:05,094 - train.py[line:105] - INFO: val_recall: 0.368988, val_ndcg: 0.368201, val_hit_rate: 0.863715, train_loss: 5.324415
+2022-06-09 20:14:05,094 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5202276110649109
+2022-06-09 20:14:15,234 - train.py[line:96] - INFO: step:27500
+2022-06-09 20:14:28,925 - train.py[line:105] - INFO: val_recall: 0.368549, val_ndcg: 0.367149, val_hit_rate: 0.865584, train_loss: 5.332090
+2022-06-09 20:14:28,925 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5202276110649109
+2022-06-09 20:14:38,975 - train.py[line:96] - INFO: step:28000
+2022-06-09 20:14:53,092 - train.py[line:105] - INFO: val_recall: 0.368696, val_ndcg: 0.367502, val_hit_rate: 0.867582, train_loss: 5.299492
+2022-06-09 20:14:53,092 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.307905912399292 stddev:0.5202276110649109
+2022-06-09 20:15:02,976 - train.py[line:96] - INFO: step:28500
+2022-06-09 20:15:17,401 - train.py[line:105] - INFO: val_recall: 0.369586, val_ndcg: 0.369648, val_hit_rate: 0.866196, train_loss: 5.321221
+2022-06-09 20:15:17,401 - train.py[line:106] - INFO: lowerboundary:-2.212202310562134  upperboundary:2.3241732120513916 stddev:0.5202276110649109
+2022-06-09 20:15:17,402 - train.py[line:138] - INFO: testing!
+2022-06-09 20:15:30,833 - train.py[line:144] - INFO: test_num: 31038.000000, test_recall: 0.369869, test_ndcg: 0.369677, test_hit_rate: 0.867872
