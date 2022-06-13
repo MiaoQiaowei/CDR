@@ -14,3 +14,7 @@ save/*
 test.py
 papers/*
 *papers
+*save_bias_false
+*new_break
+*compare
+tmp.py
