@@ -228,10 +228,20 @@ class Model:
 
     def vqvae(self, x, code_book, mask=None):
         # vqvae
+
+        avg_weight = tf.ones_like(x)
+
         with tf.name_scope('vqvae'):
             
             if self.args.ISCS:
                 vq_x, encodings = self.get_quantized(x, code_book)
+                avg_weight = tf.reduce_sum(encodings, axis=0, keepdims=True) / tf.reduce_sum(encodings, keepdims=False) + 1e-9
+                avg_weight_ = 1/avg_weight
+                avg_weight = avg_weight_ / tf.reduce_sum(avg_weight_, keepdims=False)
+                # avg_weight = tf.nn.softmax(avg_weight) 
+                self.avg_weight = encodings @ tf.transpose(avg_weight)
+                avg_weight = tf.tile(avg_weight, multiples=[1,self.embedding_dim])
+                
                 IS = vq_x
                 CS = code_book
                 for i in range(self.args.CATT_layers):
@@ -254,6 +264,7 @@ class Model:
                 vq_x, encodings = self.get_quantized(x, code_book)
             
             vq_x = tf.reshape(vq_x, [-1, self.max_len, self.embedding_dim])
+            avg_weight = tf.reshape(avg_weight, [-1, self.max_len, self.embedding_dim])
             vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(mask, axis=-1), [-1, 1])
             
         return vq_mean    
@@ -333,8 +344,8 @@ class DNN(Model):
             self.batch_size:inputs[7]
         }
 
-        loss, _ , upperboundary, lowerboundary, stddev= sess.run(
-            [self.loss, self.opt, self.upperboundary_tf, self.lowerboundary_tf, self.stddev_tf],
+        loss, _ , upperboundary, lowerboundary, stddev, avg_weight= sess.run(
+            [self.loss, self.opt, self.upperboundary_tf, self.lowerboundary_tf, self.stddev_tf, self.avg_weight],
             feed_dict=feed_dict
         )
 
@@ -342,4 +353,4 @@ class DNN(Model):
         self.lowerboundary = min(lowerboundary, self.lowerboundary)
         self.stddev = max(stddev, self.stddev)
 
-        return loss
+        return loss, avg_weight

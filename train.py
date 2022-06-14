@@ -86,7 +86,9 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             args.lr, args.dropout, len(user_ids)
         ]
 
-        loss = model.run(sess, inputs)
+        loss, avg = model.run(sess, inputs)
+        print(avg)
+        exit()
 
         manager.add(loss)
 
