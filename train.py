@@ -158,6 +158,7 @@ def get_args():
     parser.add_argument('--embedding_num', type=int, default=64)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--ISCS', action='store_true', default=False)
+    parser.add_argument('--CATT_layers',type=int, default=1)
     parser.add_argument('--vqvae', action='store_true', default=False)
     # parser.add_argument('--self_attn', action='store_true', default=False)
     parser.add_argument('--upper_boundary', type=float, default=1)

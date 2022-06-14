@@ -173,7 +173,7 @@ class Model:
             v = tf.layers.dense(v, dim, activation=None, name='v')
             return q, k, v
 
-    def CS(self, x, mask=0):
+    def CATT(self, q, k, v, name, use_mask=False):
         '''
         估算每个x在train set 中的比例（在batch 中）
         '''
@@ -181,48 +181,50 @@ class Model:
         slen = self.args.max_len
         dim = self.args.embedding_dim
 
-        with tf.name_scope('CS'):
-            flattened = tf.reshape(x, [-1, dim])
+        with tf.name_scope(f'{name}'):
+            q = tf.reshape(q, [-1, dim])
+            k = tf.reshape(k, [-1, dim])
+            v = tf.reshape(k, [-1, dim])
 
-            q, k, v = self.qkv(flattened, flattened, flattened, dim)
+            q, k, v = self.qkv(q, k, v, dim)
 
             qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5) # bs*slen , bs*slen
 
-            mask = tf.range(slen)
-            mask = tf.expand_dims(mask,axis=1)
-            mask = tf.tile(mask,[1,self.batch_size])
-            mask = tf.one_hot(mask, depth=self.batch_size, on_value=1.0)
-            mask = tf.reshape(mask, [self.batch_size*slen, -1])
-            mask = mask @ tf.transpose(mask,[1,0])
-            inf_mask = tf.zeros_like(mask) + float("-inf")
-            if mask == 0:
+            if use_mask:
+                mask = tf.range(slen)
+                mask = tf.expand_dims(mask,axis=1)
+                mask = tf.tile(mask,[1,self.batch_size])
+                mask = tf.one_hot(mask, depth=self.batch_size, on_value=1.0)
+                mask = tf.reshape(mask, [self.batch_size*slen, -1])
+                mask = mask @ tf.transpose(mask,[1,0])
+                inf_mask = tf.zeros_like(mask) + float("-inf")
                 bool_mask = tf.cast(1-mask, tf.bool)
-            else:
-                bool_mask = tf.cast(mask, tf.bool)
-            qk = tf.where(bool_mask, x=qk, y=inf_mask)
+                qk = tf.where(bool_mask, x=qk, y=inf_mask)
 
             A = tf.nn.softmax(qk, axis=-1) # bs*slen, bs*slen
             CS = A@v
 
             return tf.reshape(CS, [-1, slen, dim])
     
-    def IS(self, x, code_book):
-        '''
-        估算返回 x通过code_book找到的中介变量
-        '''
-        bs = self.args.batch_size
-        slen = self.args.max_len
-        dim = self.args.embedding_dim
+    # def IS(self, q, k, v):
+    #     '''
+    #     估算返回 x通过code_book找到的中介变量
+    #     '''
+    #     bs = self.args.batch_size
+    #     slen = self.args.max_len
+    #     dim = self.args.embedding_dim
 
-        with tf.name_scope('IS'):
-            flattened = tf.reshape(x, [-1, dim])
+    #     with tf.name_scope('IS'):
+    #         q = tf.reshape(q, [-1, dim])
+    #         k = tf.reshape(k, [-1, dim])
+    #         v = tf.reshape(k, [-1, dim])
+            
+    #         q, k, v = self.qkv(q, k, v, dim)
 
-            q, k, v = self.qkv(flattened, code_book, code_book, dim)
+    #         qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5)  # bs*slen , embedding_num
+    #         IS = qk @ v # bs*slen , dim
 
-            qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5)  # bs*slen , embedding_num
-            IS = qk @ v # bs*slen , dim
-
-            return tf.reshape(IS, [-1, slen, dim])
+    #         return tf.reshape(IS, [-1, slen, dim])
 
     def vqvae(self, x, code_book, mask=None):
         # vqvae
@@ -230,15 +232,23 @@ class Model:
             
             if self.args.ISCS:
                 vq_x, encodings = self.get_quantized(x, code_book)
-                CS = self.CS(vq_x)
-                IS = self.IS(vq_x, code_book)
+                IS = vq_x
+                CS = code_book
+                for i in range(self.args.CATT_layers):
+                    CS = self.CATT(q=IS, k=CS, v=CS, name='CS')
+                    IS = self.CATT(q=IS, k=IS, v=IS, name='IS')
 
                 CS_ = tf.reshape(CS, [-1, self.embedding_dim])
                 IS_ = tf.reshape(IS, [-1, self.embedding_dim])
-                
+
+                # ISCS = tf.contrib.layers.layer_norm(CS_ + IS_)
                 ISCS = tf.concat([IS_, CS_], axis=-1)
                 vq_x = tf.layers.dense(ISCS, self.embedding_dim, activation=None, name='mix_CS_and_IS')
-                vq_x = tf.contrib.layers.layer_norm(vq_x)
+                
+                # ISCS = tf.concat([IS_, CS_], axis=-1)
+                # vq_x = tf.layers.dense(ISCS, self.embedding_dim, activation=None, name='mix_CS_and_IS')
+                # vq_x = tf.contrib.layers.layer_norm(vq_x)
+                # vq_x, encodings = self.get_quantized(vq_x, code_book)
                 
             else:
                 vq_x, encodings = self.get_quantized(x, code_book)

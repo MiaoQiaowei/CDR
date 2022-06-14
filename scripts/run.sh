@@ -1,7 +1,7 @@
 dataset=ml_nf
 model=DNN
-domain_index=1
-exp_name=ISCS-vqvae_$model-$dataset-$domain_index
+domain_index=0
+exp_name=new-ISCS_$model-$dataset-$domain_index
 
 # step 1-domain 0
 CUDA_VISIBLE_DEVICES=0 python3 train.py \
@@ -15,5 +15,5 @@ CUDA_VISIBLE_DEVICES=0 python3 train.py \
     --domain_index $domain_index \
     --vqvae \
     --ISCS \
-    --restore_path save_bias_false/ISCS-vqvae_DNN-ml_nf-0/model.ckpt
+    # --restore_path save_bias_false/new-ISCS_DNN-ml_nf-0/model.ckpt
 
