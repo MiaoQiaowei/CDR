@@ -73,6 +73,8 @@ class Model:
         with tf.name_scope('code_book_vars'):
             self.code_book = tf.get_variable("code_book", [self.embedding_num, self.embedding_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.dtypes.float32))
+            # self.code_book_2 = tf.get_variable("code_book2", [self.embedding_num, self.embedding_dim], trainable=True,
+            #                                 initializer=tf.random_normal_initializer(mean=0.0, stddev=0.1, seed=None, dtype=tf.dtypes.float32)
 
         # embedding table
         with tf.name_scope('embedding_table_vars'):
@@ -97,34 +99,6 @@ class Model:
                 )
             x = tf.reshape(x, [-1, self.embedding_dim])
         return x
-
-    def vqvae(self, x, code_book, mask=None):
-        # vqvae
-        with tf.name_scope('vqvae'):
-            
-            if self.args.ISCS:
-                # vq_x, encodings = self.get_quantized(x, code_book)
-                CS = self.CS(x)
-                IS = self.IS(x, code_book)
-                # IS = self.CS(x, mask=1)
-
-                CS_ = tf.reshape(CS, [-1, self.embedding_dim])
-                IS_ = tf.reshape(IS, [-1, self.embedding_dim])
-                # ISCS = tf.concat([IS_, CS_], axis=-1)
-                # vq_x = tf.layers.dense(ISCS, self.embedding_dim, activation=None, name='mix_CS_and_IS')
-                # vq_x = tf.contrib.layers.layer_norm(vq_x)
-                
-                ISCS = tf.concat([IS_, CS_], axis=-1)
-                vq_x = tf.layers.dense(ISCS, self.embedding_dim, activation=None, name='mix_CS_and_IS')
-                vq_x = tf.contrib.layers.layer_norm(vq_x)
-                # vq_x, encodings = self.get_quantized(x, code_book)
-            else:
-                vq_x, encodings = self.get_quantized(x, code_book)
-            
-            vq_x = tf.reshape(vq_x, [-1, self.max_len, self.embedding_dim])
-            vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(mask, axis=-1), [-1, 1])
-            
-        return vq_mean
     
     def sampled_softmax_loss(self, x, y, mask=None):
         with tf.name_scope('sample_softmax_loss'):
@@ -142,7 +116,17 @@ class Model:
 
             loss = tf.reduce_mean(loss)
  
-        return loss  
+        return loss
+
+    def restore(self, path, sess):
+        saver = tf.train.Saver()
+        saver.restore(sess, path)
+    
+    def save(self, path, sess):
+        if not osp.exists(path):
+            os.makedirs(path)
+        saver = tf.train.Saver()
+        saver.save(sess, osp.join(path, 'model.ckpt'))  
 
     def run(self, sess, inputs):
         
@@ -240,15 +224,29 @@ class Model:
 
             return tf.reshape(IS, [-1, slen, dim])
 
-    def restore(self, path, sess):
-        saver = tf.train.Saver()
-        saver.restore(sess, path)
-    
-    def save(self, path, sess):
-        if not osp.exists(path):
-            os.makedirs(path)
-        saver = tf.train.Saver()
-        saver.save(sess, osp.join(path, 'model.ckpt'))
+    def vqvae(self, x, code_book, mask=None):
+        # vqvae
+        with tf.name_scope('vqvae'):
+            
+            if self.args.ISCS:
+                vq_x, encodings = self.get_quantized(x, code_book)
+                CS = self.CS(vq_x)
+                IS = self.IS(vq_x, code_book)
+
+                CS_ = tf.reshape(CS, [-1, self.embedding_dim])
+                IS_ = tf.reshape(IS, [-1, self.embedding_dim])
+                
+                ISCS = tf.concat([IS_, CS_], axis=-1)
+                vq_x = tf.layers.dense(ISCS, self.embedding_dim, activation=None, name='mix_CS_and_IS')
+                vq_x = tf.contrib.layers.layer_norm(vq_x)
+                
+            else:
+                vq_x, encodings = self.get_quantized(x, code_book)
+            
+            vq_x = tf.reshape(vq_x, [-1, self.max_len, self.embedding_dim])
+            vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(mask, axis=-1), [-1, 1])
+            
+        return vq_mean    
 
 
 class DNN(Model):

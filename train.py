@@ -172,6 +172,7 @@ def get_args():
     parser.add_argument('--coef', type=float,default=0.0)
     parser.add_argument('--topN', type=int, default=50)
     parser.add_argument('--max_step', type=int, default=300000)
+    parser.add_argument('--CR', action='store_true', default=False, help='Cross Domain')
     args = parser.parse_args()
 
     return args
