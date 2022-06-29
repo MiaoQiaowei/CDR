@@ -16,7 +16,7 @@ from tools import get_NDCG, get_data_info, get_model, restore, save
 tf.logging.set_verbosity(tf.logging.INFO)
 
 def eval(loader, model, sess, manager:Manager, args, name='val'):
-    # manager.logger.info(f'eval on domain:{args.domain_index}')
+    manager.logger.info(f'eval on domain:{args.domain_index}')
 
     embedding_table = sess.run(model.item_embedding_table)
 
@@ -48,7 +48,6 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
         if len(history_items) == 0:
             continue
         
-        # history_embeddings = model.get_user_embeddings(sess, [user_ids, len(user_ids), domain_ids])[0]
         history_embeddings = model.get_history_embeddings(sess, [history_items, history_mask, domain_ids, len(user_ids)])[0]
 
         history_embeddings = np.array(history_embeddings)
@@ -76,8 +75,7 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
 
 def train(train_loader, val_loader, model, sess, manager:Manager, args):
     patience = 0
-    code_book = None
-    # avg = None
+
     for X, Y in tqdm(train_loader):
         user_ids, item_ids, domain_ids = X
         history_items, history_mask = Y
@@ -89,17 +87,6 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
         ]
 
         loss, vq_loss, code_book_ = model.run(sess, inputs)
-        # if code_book is None:
-        #     code_book = code_book_
-        # else:
-        #     code_book = np.array(code_book)
-        #     code_book_ = np.array(code_book_)
-        #     a = np.sum(code_book ==code_book_)
-        #     b = np.sum(code_book == code_book)
-        #     print(a,b)
-        #     if model.step>3:
-        #         exit()
-        #     code_book = code_book_
 
         manager.add(loss)
 
@@ -148,11 +135,6 @@ def test(loader, model, sess, manager:Manager, args):
     restore(restore_path, sess)
 
     metric = eval(loader, model, sess, manager, args, name='test')
-    # a = sess.run(model.item_embedding_table)
-    # a = np.array(a)
-    # print(np.mean(a))
-    # print(np.std(a))
-    # exit()
 
     manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
 

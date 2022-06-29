@@ -9,9 +9,6 @@ class Model:
         self.loss = None
         self.opt = None
         self.step = 0
-        self.gard_list = []
-        # optimizer = tf.train.AdamOptimizer(self.lr)
-        # self.train_op= optimizer.apply_gradients(self.gard_list,global_step=self.step)
 
     def create_model_variable(self, args):
         self.item_count = args.item_count
@@ -51,11 +48,8 @@ class Model:
             stddev = args.stddev
 
             self.item_embedding_table = tf.Variable(tf.random_normal([self.item_count, self.embedding_dim], mean=mean, stddev=stddev,dtype= tf.float32), trainable=True, name='item_embedding_table')
-            # self.user_embedding_table= tf.Variable(tf.random_normal([self.user_count, self.embedding_dim], mean=mean, stddev=stddev,dtype= tf.float32), trainable=True, name='user_embedding_table')
 
             self.embedding_table_bias = tf.Variable(tf.zeros([self.item_count], dtype=tf.float32), trainable=False, name='embedding_table_bias')
-
-            # self.user_item = self.user_embedding_table @ tf.transpose( self.item_embedding_table)
 
     def create_forward_path(self, args):
         raise NotImplementedError
@@ -118,8 +112,7 @@ class Model:
         return x, decoder_var
 
     def vqvae(self, x, code_book, mask=None):
-        # vqvae
-        # x = tf.stop_gradient(x)
+
         with tf.name_scope('vqvae'):
             x_ = tf.reshape(x, [-1, self.embedding_dim])
             x_encode,var_encoder = self.encoder(x)
@@ -133,24 +126,6 @@ class Model:
         commit = tf.losses.mean_squared_error(x_encode,tf.stop_gradient(x_decode))
 
         vqvae_loss = recon + vq + self.beta * commit
-
-
-        # decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,self.decoder_var.name)
-        # decoder_grads = list(zip(tf.gradients(vqvae_loss, decoder_vars), decoder_vars))
-        # self.grad_list+=decoder_grads
-
-        # # Encoder Grads
-        # encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,self.encoder_var.name)
-        # grad_z = tf.gradients(recon, x_decode)
-        # encoder_grads = [(tf.gradients(x_decode, var,grad_z)[0]+self.beta*tf.gradients(commit,var)[0],var)
-        #                     for var in encoder_vars]
-        # self.grad_list+=encoder_grads
-
-        # # Embedding Grads
-        # embed_grads = list(zip(tf.gradients(vq, code_book),[code_book]))
-        # self.gard_list+=embed_grads
-        
-        # x_decode = tf.reshape(x_decode, [-1, self.max_len, self.code_book_dim])
 
         return vq_mean, vq_x, x_encode, x_decode, vqvae_loss
     
@@ -197,8 +172,7 @@ class Model:
             CS = tf.contrib.layers.layer_norm(CS + x)
             CS_dense = tf.layers.dense(CS, self.embedding_dim)
             CS = tf.contrib.layers.layer_norm(CS + CS_dense)
-        # ISCS_ = tf.contrib.layers.layer_norm(CS + IS)
-        # ISCS = tf.layers.dense(ISCS_, self.embedding_dim, name='mixer')
+
         ISCS = tf.contrib.layers.layer_norm(CS + IS)
         ISCS = tf.reshape(ISCS, shape)
         return ISCS
@@ -351,30 +325,6 @@ class DNN(Model):
         self.stddev = 0
         self.beta = 0.25
         self.loss = self.create_forward_path(args, name)
-        
-        
-        # self.gard_list = []
-        # optimizer = tf.train.AdamOptimizer(self.lr)
-        # self.train_op= optimizer.apply_gradients(self.gard_list, global_step=self.step)
-        
-        # gard_list = []
-        # if args.vqvae:
-        #     decoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,self.decoder_var.name)
-        #     decoder_grads = list(zip(tf.gradients(self.loss,decoder_vars), decoder_vars))
-        #     grad_list.append(decoder_grads)
-        #     # Encoder Grads
-        #     encoder_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES,self.encoder_var.name)
-        #     grad_z = tf.gradients(self.recon,z_q)
-        #     encoder_grads = [(tf.gradients(z_e,var,grad_z)[0]+self.beta*tf.gradients(self.commit,var)[0],var)
-        #                         for var in encoder_vars]
-        #     grad_list.append(decoder_grads)
-        #     # Embedding Grads
-        #     embed_grads = list(zip(tf.gradients(self.vq,embeds),[embeds]))
-
-        # optimizer = tf.train.AdamOptimizer(self.lr)
-        # self.train_op= optimizer.apply_gradients(gard_list,global_step=self.step)
-
-
         self.opt = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
         
     def create_forward_path(self, args, name='DNN'):
@@ -384,8 +334,6 @@ class DNN(Model):
             
             # get embedding
             histroy_item_embeddings = tf.nn.embedding_lookup(self.item_embedding_table, self.history_item_ids)
-            # histroy_user_embeddings = tf.nn.embedding_lookup(self.user_embedding_table, self.user_ids)
-            # item_embeddings = tf.nn.embedding_lookup(self.item_embedding_table, self.item_ids)
 
             self.upperboundary_tf = tf.reduce_max(histroy_item_embeddings)
             self.lowerboundary_tf = tf.reduce_min(histroy_item_embeddings)
@@ -406,31 +354,18 @@ class DNN(Model):
             # use vqvae
             if args.vqvae:
                 vqvae_item_embeddings_mean, vq_x, x_encode, x_decode,  self.vq_loss = self.vqvae(histroy_item_embeddings, self.code_book, mask)
-                # histroy_item_embeddings_mean = tf.concat([vqvae_item_embeddings_mean, histroy_item_embeddings_mean], axis=-1)
-                # histroy_item_embeddings = histroy_item_embeddings + tf.stop_gradient(vq_x - histroy_item_embeddings)
-                # histroy_item_embeddings = tf.concat([histroy_item_embeddings, vq_x], axis=-1)
-                # histroy_item_embeddings_mean = vqvae_item_embeddings_mean
                 loss += self.vq_loss
-                # x_encode  = tf.reshape(x_encode, [-1, self.max_len, self.code_book_dim])
-                # x_decode  = tf.reshape(x_decode, [-1, self.max_len, self.code_book_dim])
+
                 x_encode = tf.layers.max_pooling2d(x_encode,pool_size=(1,2),strides=1)
                 x_decode = tf.layers.max_pooling2d(x_decode,pool_size=(1,2),strides=1)
                 x_encode  = tf.reshape(x_encode, [-1, self.code_book_dim])
                 x_decode  = tf.reshape(x_decode, [-1, self.code_book_dim])
-                # x_encode  = tf.reduce_mean(x_encode, axis=1)
-                # x_decode = tf.reduce_mean(x_decode, axis=1)
-                # histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
+                
                 histroy_item_embeddings_mean = tf.concat([x_encode, x_decode], axis=-1)
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, name=1)
             else:
-            # get logtis
                 histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, name=0)
-            # user_embedding,_ = self.get_quantized(self.histroy_item_embeddings_mean ,self.user_book)
-            # self.histroy_item_embeddings_mean = tf.concat([self.histroy_item_embeddings_mean, user_embedding],axis=-1)
-            # self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean,name=1)
-
-            # self.histroy_user_embeddings = histroy_user_embeddings
 
             # get loss
             self.ce_loss = self.sampled_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids)
@@ -452,19 +387,6 @@ class DNN(Model):
             feed_dict=feed_dict
         )
         return history_embeddings
-
-    # def get_user_embeddings(self, sess, inputs):
-    #     feed_dict = {
-    #         self.user_ids:inputs[0],
-    #         self.batch_size:inputs[1],
-    #         self.domain_labels:inputs[2],
-    #     }
-    #     history_embeddings = sess.run(
-    #         [self.histroy_user_embeddings],
-    #         feed_dict=feed_dict
-    #     )
-    #     return history_embeddings
-        
     
     def run(self, sess, inputs):
     
