@@ -45,6 +45,8 @@ class DataIterator:
         self.users = self.domain_users[self.domain_index]
         self.user_num = len(self.users)
         self.test_index = 0
+        # print(self.user_num)
+        # exit()
 
     
     def __iter__(self):

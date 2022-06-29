@@ -16,6 +16,7 @@ def get_data_info(args):
         domain = ['ml','nf']
         data_info['domain'] = domain[args.domain_index]
         data_info['item_count'] = 5569+10
+        data_info['user_count'] = 14630
         data_info['max_len'] = 20
         data_info['test_iter'] = 500
 
@@ -65,7 +66,8 @@ def restore(path, sess, ignore=[]):
     for v in vars:
         if not any( name in v.name for name in ignore):
             variables_to_resotre.append(v)
-    
+    # print(variables_to_resotre)
+    # exit()
     saver = tf.train.Saver(variables_to_resotre)
     saver.restore(sess, path)
     

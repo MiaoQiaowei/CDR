@@ -18,7 +18,7 @@ tf.logging.set_verbosity(tf.logging.INFO)
 def eval(loader, model, sess, manager:Manager, args, name='val'):
     # manager.logger.info(f'eval on domain:{args.domain_index}')
 
-    embedding_table = sess.run(model.embedding_table)
+    embedding_table = sess.run(model.item_embedding_table)
 
     try:
         res = faiss.StandardGpuResources()
@@ -48,6 +48,7 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
         if len(history_items) == 0:
             continue
         
+        # history_embeddings = model.get_user_embeddings(sess, [user_ids, len(user_ids), domain_ids])[0]
         history_embeddings = model.get_history_embeddings(sess, [history_items, history_mask, domain_ids, len(user_ids)])[0]
 
         history_embeddings = np.array(history_embeddings)
@@ -75,7 +76,8 @@ def eval(loader, model, sess, manager:Manager, args, name='val'):
 
 def train(train_loader, val_loader, model, sess, manager:Manager, args):
     patience = 0
-
+    code_book = None
+    # avg = None
     for X, Y in tqdm(train_loader):
         user_ids, item_ids, domain_ids = X
         history_items, history_mask = Y
@@ -86,9 +88,18 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             args.lr, args.dropout, len(user_ids)
         ]
 
-        loss, avg = model.run(sess, inputs)
-        print(avg)
-        exit()
+        loss, vq_loss, code_book_ = model.run(sess, inputs)
+        # if code_book is None:
+        #     code_book = code_book_
+        # else:
+        #     code_book = np.array(code_book)
+        #     code_book_ = np.array(code_book_)
+        #     a = np.sum(code_book ==code_book_)
+        #     b = np.sum(code_book == code_book)
+        #     print(a,b)
+        #     if model.step>3:
+        #         exit()
+        #     code_book = code_book_
 
         manager.add(loss)
 
@@ -100,7 +111,7 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             
             metric['train_loss'] = manager.avg()
             metric['ce_loss'] = 0
-            metric['vqvae_loss'] = 0
+            metric['vqvae_loss'] = vq_loss
             manager.info['lowerboundary'] = float(model.lowerboundary)
             manager.info['upperboundary'] = float(model.upperboundary)
             manager.info['stddev'] = float(model.stddev)
@@ -137,6 +148,12 @@ def test(loader, model, sess, manager:Manager, args):
     restore(restore_path, sess)
 
     metric = eval(loader, model, sess, manager, args, name='test')
+    # a = sess.run(model.item_embedding_table)
+    # a = np.array(a)
+    # print(np.mean(a))
+    # print(np.std(a))
+    # exit()
+
     manager.logger.info(', '.join([f'{key}: %.6f' % value for key, value in metric.items()]))
 
     manager.info.update(metric)
@@ -157,7 +174,8 @@ def get_args():
     parser.add_argument('--model', type=str,default='DNN')
     parser.add_argument('--dropout', type=float, default=0.3)
     parser.add_argument('--embedding_dim', type=int, default=64)
-    parser.add_argument('--embedding_num', type=int, default=64)
+    parser.add_argument('--embedding_num', type=int, default=1024)
+    # parser.add_argument('--code_book_dim', type=int, default=8)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--ISCS', action='store_true', default=False)
     parser.add_argument('--CATT_layers',type=int, default=1)
@@ -200,11 +218,15 @@ def main(_):
     test_path = osp.join(data_info['path'], 'test.json')
 
     args.item_count = data_info['item_count']
+    args.user_count = data_info['user_count']
     args.max_len = data_info['max_len']
     args.test_iter = data_info['test_iter']
 
     # get model
     model = get_model(args)
+    graph = tf.get_default_graph()
+    tf.summary.FileWriter(osp.join(args.save_path, 'graph') , graph)
+
 
     manager.logger.info("max_iter: {}".format(args.max_step))
     manager.info.update(vars(args))
@@ -256,7 +278,7 @@ def main(_):
         if args.restore_path != '':
             manager.logger.info(f'restore model from {args.restore_path}')
             # restore(args.restore_path, sess)
-            restore(args.restore_path, sess, ignore=['embedding'])
+            restore(args.restore_path, sess, ignore=['embedding','user_embedding_table','vq_x_mixer'])
 
         train(train_loader, val_loader, model, sess, manager, args)
 
