@@ -77,8 +77,6 @@ class Model:
             else:
                 H = int(self.max_len ** 0.5)
                 W = self.max_len // H
-                # H = 5
-                # W = 8
                 x = tf.reshape(x, [-1, H, W, self.embedding_dim])
 
                 x = tf.layers.conv2d(x, filters=self.embedding_dim * 2, kernel_size=2)
@@ -271,9 +269,6 @@ class DNN(Model):
                     concat_mean = self.mixer(XZ, out_dim=self.embedding_dim, name=0)
                     concat_mean = tf.reshape(concat_mean, [-1, self.embedding_num*self.embedding_dim])# bs, code_num*dim
 
-                    # IS 是 x 对 z
-                    # CS 是 x 对 x
-
                     dist = self.l2(x_encode, self.user_book, dim=self.code_book_dim)
                     p = tf.nn.softmax(dist, axis=1) + 1e-12
                     p = 1/p # bs, code_book_num
@@ -298,11 +293,6 @@ class DNN(Model):
                     histroy_item_embeddings_mean = tf.concat([x_encode, x_decode, x_encode_meta], axis=-1)
 
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=1)
-
-                # if args.ISCS:
-
-                #     histroy_item_embeddings_mean = tf.concat([self.histroy_item_embeddings_mean, front_door],-1)
-                #     self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=2)
 
             else:
                 histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
