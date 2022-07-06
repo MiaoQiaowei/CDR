@@ -259,7 +259,6 @@ def main(_):
 
         if args.restore_path != '':
             manager.logger.info(f'restore model from {args.restore_path}')
-            # restore(args.restore_path, sess)
             restore(args.restore_path, sess, ignore=['embedding'])
 
         train(train_loader, val_loader, model, sess, manager, args)

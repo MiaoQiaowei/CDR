@@ -1,6 +1,5 @@
 import json
 import random
-import numpy as np
 
 def get_data(data_path,domain_index):
     '''
@@ -45,8 +44,6 @@ class DataIterator:
         self.users = self.domain_users[self.domain_index]
         self.user_num = len(self.users)
         self.test_index = 0
-        # print(self.user_num)
-        # exit()
 
     
     def __iter__(self):
@@ -112,30 +109,3 @@ class DataIterator:
         user_ids_int = [int(user_id) for user_id in user_ids]
 
         return (user_ids_int, item_ids, domain_labels), (history_item_ids, history_item_mask)
-
-
-
-
-if __name__ =='__main__':
-    # get_data('C:\\CODEs\\CrossDomainRec\\CDR\\data\\ml_nf\\train.json')
-    val_loader = DataIterator(
-            data_path='data/ml_nf/test.json',
-            batch_size=128,
-            max_len=20,
-            domain_num=1,
-            domain_index=0,
-            is_train=False,
-            use_vqvae=False
-        )
-    
-    for x,y in val_loader:
-        # print(x[0])
-        # print(x[1])
-        # if len(x[1]) == 0:
-        #     exit()
-        print(len(x[0]))
-        print(len(x[1]))
-        print(len(x[2]))
-        # print(x[1])
-            
-    
