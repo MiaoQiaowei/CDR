@@ -2,9 +2,7 @@ import json
 import random
 
 def get_data(data_path,domain_index):
-    '''
-    reture all domain info
-    '''
+
     with open(data_path, 'r') as f:
         graph = json.load(f)
     users = list(graph.keys())
@@ -50,10 +48,6 @@ class DataIterator:
         return self
     
     def __next__(self):
-        '''
-        对数据划分，一个user的前80%进行训练，后20%进行测试
-        返回
-        '''
 
         if self.is_train:
             user_ids = random.sample(self.users, k=self.batch_size)
@@ -64,7 +58,6 @@ class DataIterator:
             user_ids =  self.users[self.test_index : self.test_index+self.batch_size]
             self.test_index += self.batch_size
         
-        # 对具体的数据进行处理
         item_ids = []
         domain_labels = []
         history_item_ids = []
@@ -92,7 +85,6 @@ class DataIterator:
                 else:
                     split = int(item_num * 0.8)
                 item_ids.append(single_domain_items[split:])
-
 
             if split < self.max_len:
                 history_item_ids.append(single_domain_items[:split] + [0] * (self.max_len-split))
