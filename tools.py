@@ -66,8 +66,6 @@ def restore(path, sess, ignore=[]):
     for v in vars:
         if not any( name in v.name for name in ignore):
             variables_to_resotre.append(v)
-    # print(variables_to_resotre)
-    # exit()
     saver = tf.train.Saver(variables_to_resotre)
     saver.restore(sess, path)
     
@@ -83,14 +81,20 @@ def get_DCG(scores):
         dtype=np.float32)
 
 def get_NDCG(rank_list, pos_items):
+
+    len_rank_list = len(rank_list)
+    len_pos_items = len(pos_items)
     pos_items_metrics = [x for x in pos_items if x in rank_list]
-    relevance = np.ones_like(pos_items_metrics, dtype=float)
-    it2rel = {it: r for it, r in zip(pos_items_metrics, relevance)}
+    it2rel = {it: 1 for it in pos_items_metrics}
     rank_scores = np.asarray([it2rel.get(it, 0.0) for it in rank_list], dtype=np.float32)
-
-    idcg = get_DCG(relevance)
-
     dcg = get_DCG(rank_scores)
+
+
+    min_len = min(len_rank_list, len_pos_items)
+    pos_items = pos_items[:min_len]
+    relevance = np.ones_like(pos_items, dtype=float)
+    idcg = get_DCG(relevance) 
+    
 
     if dcg == 0.0:
         return 0.0

@@ -15,7 +15,6 @@ class Model:
         self.user_count = args.user_count
         self.embedding_dim = args.embedding_dim
         self.embedding_num = args.embedding_num
-        # self.code_book_dim = args.code_book_dim 
         self.code_book_dim = self.embedding_num * 8
         self.domain_num = args.domain_num
         self.max_len = args.max_len
@@ -35,7 +34,7 @@ class Model:
 
         # code book
         with tf.name_scope('code_book_vars'):
-            self.code_book = tf.get_variable("code_book", [self.embedding_num, self.code_book_dim], trainable=True,
+            self.item_book = tf.get_variable("item_book", [self.embedding_num, self.code_book_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=1, seed=None, dtype=tf.float32))
             self.user_book = tf.get_variable("user_book", [self.embedding_num, self.code_book_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=1, seed=None, dtype=tf.float32))
@@ -54,18 +53,18 @@ class Model:
     def create_forward_path(self, args):
         raise NotImplementedError
 
-    def mixer(self, x, name=''):
+    def mixer(self, x, out_dim, name=''):
         with tf.name_scope(f'mix_layers_{name}'):
             x = tf.layers.dense(x, 
-                    self.embedding_dim, 
+                    out_dim, 
                     activation=None, 
                     name=f'mix_layer_{name}_0'
                 )
-            x = tf.reshape(x, [-1, self.embedding_dim])
+            x = tf.reshape(x, [-1, out_dim])
         return x
     
     def encoder(self, x, fc_or_conv='conv'):
-        with tf.variable_scope('encoder') as encoder_var:
+        with tf.variable_scope('encoder', reuse=tf.AUTO_REUSE) as encoder_var:
             if fc_or_conv == 'fc':
                 x = tf.reshape(x, [-1, self.embedding_dim])
                 x = tf.layers.dense(x, self.embedding_dim//2, activation=None)
@@ -78,6 +77,8 @@ class Model:
             else:
                 H = int(self.max_len ** 0.5)
                 W = self.max_len // H
+                # H = 5
+                # W = 8
                 x = tf.reshape(x, [-1, H, W, self.embedding_dim])
 
                 x = tf.layers.conv2d(x, filters=self.embedding_dim * 2, kernel_size=2)
@@ -114,11 +115,14 @@ class Model:
     def vqvae(self, x, code_book, mask=None):
 
         with tf.name_scope('vqvae'):
+            x_shape = tf.shape(x)
             x_ = tf.reshape(x, [-1, self.embedding_dim])
+            
             x_encode,var_encoder = self.encoder(x)
             x_decode, encodings = self.get_quantized(x_encode, code_book)
             vq_x_,var_decoder = self.decoder(x_encode + tf.stop_gradient(x_decode-x_encode))
-            vq_x = tf.reshape(vq_x_, [-1, self.max_len, self.embedding_dim])
+
+            vq_x = tf.reshape(vq_x_, x_shape)
             vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(mask, axis=-1), [-1, 1])
 
         recon = tf.losses.mean_squared_error(x, vq_x)
@@ -128,56 +132,9 @@ class Model:
         vqvae_loss = recon + vq + self.beta * commit
 
         return vq_mean, vq_x, x_encode, x_decode, vqvae_loss
-    
-    
-    def ISCS(self, IS, CS, head_num=1, layer=1):
-        shape = tf.shape(IS)
-        IS = tf.reshape(IS, [-1, self.embedding_dim])
-        CS = tf.reshape(CS, [-1, self.embedding_dim])
 
-        mask = tf.range(self.max_len)
-        mask = tf.expand_dims(mask,axis=1)
-        mask = tf.tile(mask,[1,self.batch_size])
-        mask = tf.one_hot(mask, depth=self.batch_size, on_value=1.0)
-        mask = tf.reshape(mask, [self.batch_size*self.max_len, -1])
-        mask = mask @ tf.transpose(mask,[1,0])
-        inf_mask = tf.zeros_like(mask) + float("-inf")
-        out_mask = tf.cast(1-mask, tf.bool)
-        in_mask = tf.cast(mask, tf.bool)
 
-        for i in range(layer):
-            x = IS
-            q_is, k_is, v_is = self.qkv(x, x, x, dim=self.embedding_dim, name=i)
-            q_is = tf.concat(tf.split(q_is, head_num, axis=-1), axis=0)
-            k_is = tf.concat(tf.split(k_is, head_num, axis=-1), axis=0)
-            v_is = tf.concat(tf.split(v_is, head_num, axis=-1), axis=0)
-            qk_is = q_is @ tf.transpose(k_is) /((self.embedding_dim//head_num) ** 0.5) # bs*slen , embedding_num
-            qk_is = tf.where(in_mask, x=qk_is, y=inf_mask)
-            qk_is = tf.nn.softmax(qk_is, -1)
-            IS = qk_is @ v_is # bs*slen , dim
-            IS = tf.concat(tf.split(IS, head_num, axis=0), axis=-1)
-            IS = tf.contrib.layers.layer_norm(IS + x)
-            IS_dense = tf.layers.dense(IS, self.embedding_dim)
-            IS = tf.contrib.layers.layer_norm(IS + IS_dense)
-
-            q_cs, k_cs, v_cs = self.qkv(x, CS, CS, dim=self.embedding_dim, name=i)
-            q_cs = tf.concat(tf.split(q_cs, head_num, axis=-1), axis=0)
-            k_cs = tf.concat(tf.split(k_cs, head_num, axis=-1), axis=0)
-            v_cs = tf.concat(tf.split(v_cs, head_num, axis=-1), axis=0)
-            qk_cs = q_cs @ tf.transpose(k_cs) /((self.embedding_dim//head_num) ** 0.5) # bs*slen , embedding_num
-            qk_cs = tf.where(out_mask, x=qk_cs, y=inf_mask)
-            qk_cs = tf.nn.softmax(qk_cs, -1)
-            CS = qk_cs @ v_cs # bs*slen , dim
-            CS = tf.concat(tf.split(CS, head_num, axis=0), axis=-1)
-            CS = tf.contrib.layers.layer_norm(CS + x)
-            CS_dense = tf.layers.dense(CS, self.embedding_dim)
-            CS = tf.contrib.layers.layer_norm(CS + CS_dense)
-
-        ISCS = tf.contrib.layers.layer_norm(CS + IS)
-        ISCS = tf.reshape(ISCS, shape)
-        return ISCS
-
-    def sampled_softmax_loss(self, x, y, mask=None):
+    def sampled_softmax_loss(self, x, y):
         with tf.name_scope('sample_softmax_loss'):
 
             y = tf.reshape(y, [-1, 1])
@@ -232,65 +189,16 @@ class Model:
         quantized = tf.matmul(encodings, code_book)
         quantized = tf.reshape(quantized, input_shape)
         return quantized, encodings
-  
-    def qkv(self, q, k, v, dim, name):
-        with tf.variable_scope(f'qkv_{name}',reuse=tf.AUTO_REUSE):
-            q = tf.layers.dense(q, dim, activation=None, name='q')
-            k = tf.layers.dense(k, dim, activation=None, name='k')
-            v = tf.layers.dense(v, dim, activation=None, name='v')
-            return q, k, v
-
-    def CS(self, x):
-        '''
-        估算每个x在train set 中的比例（在batch 中）
-        '''
-
-        slen = self.args.max_len
-        dim = self.args.embedding_dim
-
-        with tf.name_scope('CS'):
-            flattened = tf.reshape(x, [-1, dim])
-
-            q, k, v = self.qkv(flattened, flattened, flattened, dim)
-
-            qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5) # bs*slen , bs*slen
-
-            mask = tf.range(slen)
-            mask = tf.expand_dims(mask,axis=1)
-            mask = tf.tile(mask,[1,self.batch_size])
-            mask = tf.one_hot(mask, depth=self.batch_size, on_value=1.0)
-            mask = tf.reshape(mask, [self.batch_size*slen, -1])
-            mask = mask @ tf.transpose(mask,[1,0])
-            inf_mask = tf.zeros_like(mask) + float("-inf")
-            bool_mask = tf.cast(1-mask, tf.bool)
-
-            qk = tf.where(bool_mask, x=qk, y=inf_mask)
-
-            A = tf.nn.softmax(qk, -1) # bs*slen, bs*slen
-            CS = A@v
-
-            return tf.reshape(CS, [-1, slen, dim])
     
-    def IS(self, x, code_book):
-        '''
-        估算返回 x通过code_book找到的中介变量
-        '''
-        bs = self.args.batch_size
-        slen = self.args.max_len
-        dim = self.args.embedding_dim
-
-        with tf.name_scope('IS'):
-            flattened = tf.reshape(x, [-1, dim])
-
-            q, k, v = self.qkv(flattened, code_book, code_book, dim)
-            k = code_book
-            v = code_book
-
-            qk = q @ tf.transpose(k)/(self.embedding_dim ** 0.5) # bs*slen , embedding_num
-            
-            IS = qk @ v # bs*slen , dim
-
-            return tf.reshape(IS, [-1, slen, dim])
+    def l2(self, a,b,dim):
+        a = tf.reshape(a, [-1, dim])
+        b = tf.reshape(b, [-1, dim])
+        distances = (
+            tf.reduce_sum(a ** 2, axis=1, keepdims=True)
+            + tf.reduce_sum(b ** 2, axis=1)
+            - 2 * tf.matmul(a, b, transpose_b=True)
+        )
+        return distances
 
     def restore(self, path, sess):
         saver = tf.train.Saver()
@@ -301,20 +209,6 @@ class Model:
             os.makedirs(path)
         saver = tf.train.Saver()
         saver.save(sess, osp.join(path, 'model.ckpt'))
-    
-    def self_attn(self, embedding):
-        '''
-        embedding: [bs, max_len, dim]
-        '''
-        embedding = tf.reshape(embedding, [-1, self.embedding_dim])
-        q, k, v = self.qkv(q=embedding, k=embedding, v=embedding, dim=self.embedding_dim)
-        qk = q @ tf.transpose(k) / (self.embedding_dim ** 0.5)
-        a = tf.nn.softmax(qk, -1)
-        attn_embedding = a @ v
-        attn_embedding = tf.reshape(attn_embedding, [-1, self.max_len, self.embedding_dim])
-        return attn_embedding
-
-
 
 
 class DNN(Model):
@@ -334,6 +228,7 @@ class DNN(Model):
             
             # get embedding
             histroy_item_embeddings = tf.nn.embedding_lookup(self.item_embedding_table, self.history_item_ids)
+            next_item_embeddings = tf.nn.embedding_lookup(self.item_embedding_table, self.item_ids)
 
             self.upperboundary_tf = tf.reduce_max(histroy_item_embeddings)
             self.lowerboundary_tf = tf.reduce_min(histroy_item_embeddings)
@@ -346,26 +241,72 @@ class DNN(Model):
             masks = tf.concat([tf.expand_dims(mask, -1) for _ in range(self.embedding_dim)], axis=-1)
 
             histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.max_len, self.embedding_dim])
-
-            if args.ISCS:
-                histroy_item_embeddings = self.ISCS(histroy_item_embeddings, histroy_item_embeddings)
-            
+            self.histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
 
             # use vqvae
             if args.vqvae:
-                vqvae_item_embeddings_mean, vq_x, x_encode, x_decode,  self.vq_loss = self.vqvae(histroy_item_embeddings, self.code_book, mask)
+
+                x_meta,_ = self.get_quantized(histroy_item_embeddings, self.item_book)
+
+                vqvae_item_embeddings_mean, vq_x, x_encode, x_decode,  self.vq_loss = self.vqvae(histroy_item_embeddings, self.user_book, mask)
                 loss += self.vq_loss
 
+                x_encode_meta,_ = self.encoder(x_meta)
+                x_encode_meta = tf.layers.max_pooling2d(x_encode_meta,pool_size=(1,2),strides=1)
+                
                 x_encode = tf.layers.max_pooling2d(x_encode,pool_size=(1,2),strides=1)
                 x_decode = tf.layers.max_pooling2d(x_decode,pool_size=(1,2),strides=1)
-                x_encode  = tf.reshape(x_encode, [-1, self.code_book_dim])
-                x_decode  = tf.reshape(x_decode, [-1, self.code_book_dim])
-                
-                histroy_item_embeddings_mean = tf.concat([x_encode, x_decode], axis=-1)
-                self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, name=1)
+
+                x_encode  = tf.reshape(x_encode, [self.batch_size, self.code_book_dim])
+                x_decode  = tf.reshape(x_decode, [self.batch_size, self.code_book_dim])
+                x_encode_meta  = tf.reshape(x_encode_meta, [self.batch_size, self.code_book_dim])
+                histroy_item_embeddings_mean = tf.concat([x_encode, x_decode, x_encode_meta], axis=-1)
+
+                if args.ISCS:
+
+                    X = tf.tile(x_encode, [1, self.embedding_num])
+                    X = tf.reshape(X, [-1, self.code_book_dim])
+                    Z = tf.tile(self.user_book, [self.batch_size, 1])
+                    XZ = tf.concat([X,Z], axis=-1)
+                    concat_mean = self.mixer(XZ, out_dim=self.embedding_dim, name=0)
+                    concat_mean = tf.reshape(concat_mean, [-1, self.embedding_num*self.embedding_dim])# bs, code_num*dim
+
+                    # IS 是 x 对 z
+                    # CS 是 x 对 x
+
+                    dist = self.l2(x_encode, self.user_book, dim=self.code_book_dim)
+                    p = tf.nn.softmax(dist, axis=1) + 1e-12
+                    p = 1/p # bs, code_book_num
+                    IS = p/tf.reduce_sum(p, axis=1, keepdims=True)
+
+                    # center = tf.reduce_mean(x_encode, axis=0, keepdims=True)
+                    dist = self.l2(x_encode, x_encode, dim=self.code_book_dim)
+                    dist = tf.reduce_sum(dist, axis=1, keepdims=True)
+                    p = tf.nn.softmax(dist, axis=0) + 1e-12
+                    p = tf.reshape(1-p, [1, -1]) # 1, bs
+                    CS = p/tf.reduce_sum(p, axis=1, keepdims=True)
+
+                    # bs, code_book_num
+                    front_door = tf.reshape(CS@concat_mean, [self.embedding_num, self.embedding_dim])
+                    front_door = IS @ front_door
+
+                    a = tf.losses.mean_squared_error(front_door, next_item_embeddings)
+                    # b = self.sampled_softmax_loss(front_door, self.item_ids)
+                    self.front_loss = a
+                    loss += self.front_loss
+
+                    histroy_item_embeddings_mean = tf.concat([x_encode, x_decode, x_encode_meta], axis=-1)
+
+                self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=1)
+
+                # if args.ISCS:
+
+                #     histroy_item_embeddings_mean = tf.concat([self.histroy_item_embeddings_mean, front_door],-1)
+                #     self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=2)
+
             else:
                 histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
-                self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, name=0)
+                self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=0)
 
             # get loss
             self.ce_loss = self.sampled_softmax_loss(self.histroy_item_embeddings_mean, self.item_ids)
