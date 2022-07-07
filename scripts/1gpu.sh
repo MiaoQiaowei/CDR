@@ -1,4 +1,4 @@
-dataset=tc_iqi
+dataset=amazon_all
 model=DNN
 domain_index=0
 exp_name=$model-$dataset-$domain_index
@@ -12,6 +12,7 @@ CUDA_VISIBLE_DEVICES=1 python3 train.py \
     --save_path gpu1\
     --exp_name $exp_name\
     --domain_index $domain_index \
+    # --restore_path gpu1/DNN-tc_iqi-0/model.ckpt\
     # --vqvae \
     # --ISCS \
-    # --restore_path save/model.ckpt\
+    # 

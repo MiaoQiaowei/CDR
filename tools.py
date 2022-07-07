@@ -40,11 +40,6 @@ def get_data_info(args):
     else:
         raise ValueError(f'DATA is not supported')
 
-    # if args.vqvae:
-    #     data_info['batch_size'] = 32
-    # else:
-    #     data_info['batch_size'] = 128
-
     return data_info
 
 def get_model(args):

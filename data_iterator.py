@@ -75,8 +75,12 @@ class DataIterator:
             mask_value = 1
 
             if self.is_train:
-                split = random.choice(range(1,item_num))
-                item_ids.append(single_domain_items[split])
+                if item_num>1:
+                    split = random.choice(range(1,item_num))
+                    item_ids.append(single_domain_items[split])
+                else:
+                    split = 0
+                    item_ids.append(0)
             else:
                 if self.only_test_last_one:
                     split = item_num-1
