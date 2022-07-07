@@ -26,7 +26,6 @@ class DataIterator:
         domain_index,
         is_train=True,
         only_test_last_one=False,
-        use_vqvae=False
     ):
 
         self.batch_size = batch_size
@@ -36,7 +35,6 @@ class DataIterator:
         self.domain_index = domain_index
         self.is_train = is_train
         self.only_test_last_one = only_test_last_one
-        self.use_vqvae = use_vqvae
 
         self.graph, self.domain_users = get_data(data_path, self.domain_index)
         self.users = self.domain_users[self.domain_index]

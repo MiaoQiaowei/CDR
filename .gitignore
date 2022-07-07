@@ -19,3 +19,5 @@ papers/*
 *compare
 tmp.py
 *vqvae
+*gpu0
+*gpu1

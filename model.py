@@ -12,7 +12,6 @@ class Model:
 
     def create_model_variable(self, args):
         self.item_count = args.item_count
-        self.user_count = args.user_count
         self.embedding_dim = args.embedding_dim
         self.embedding_num = args.embedding_num
         self.code_book_dim = self.embedding_num * 8
@@ -110,7 +109,7 @@ class Model:
 
         return x, decoder_var
 
-    def vqvae(self, x, code_book, mask=None):
+    def vqvae(self, x, code_book):
 
         with tf.name_scope('vqvae'):
             x_shape = tf.shape(x)
@@ -118,18 +117,17 @@ class Model:
             
             x_encode,var_encoder = self.encoder(x)
             x_decode, encodings = self.get_quantized(x_encode, code_book)
-            vq_x_,var_decoder = self.decoder(x_encode + tf.stop_gradient(x_decode-x_encode))
+            vqvae_x_,var_decoder = self.decoder(x_encode + tf.stop_gradient(x_decode-x_encode))
 
-            vq_x = tf.reshape(vq_x_, x_shape)
-            vq_mean = tf.reduce_sum(vq_x, 1) / tf.reshape(tf.reduce_sum(mask, axis=-1), [-1, 1])
+            vqvae_x = tf.reshape(vqvae_x, x_shape)
 
-        recon = tf.losses.mean_squared_error(x, vq_x)
+        recon = tf.losses.mean_squared_error(x, vqvae_x)
         vq = tf.losses.mean_squared_error(x_decode,tf.stop_gradient(x_encode))
         commit = tf.losses.mean_squared_error(x_encode,tf.stop_gradient(x_decode))
 
         vqvae_loss = recon + vq + self.beta * commit
 
-        return vq_mean, vq_x, x_encode, x_decode, vqvae_loss
+        return vqvae_x, x_encode, x_decode, vqvae_loss
 
 
     def sampled_softmax_loss(self, x, y):
@@ -216,6 +214,8 @@ class DNN(Model):
         self.upperboundary = args.upper_boundary
         self.stddev = 0
         self.beta = 0.25
+        self.front_door_loss = tf.zeros([1])
+        self.vqvae_loss = tf.zeros([1])
         self.loss = self.create_forward_path(args, name)
         self.opt = tf.train.AdamOptimizer(learning_rate=self.lr).minimize(self.loss)
         
@@ -232,7 +232,6 @@ class DNN(Model):
             self.lowerboundary_tf = tf.reduce_min(histroy_item_embeddings)
             self.stddev_tf = tf.math.reduce_std(histroy_item_embeddings)
 
-            # histroy_item_embeddings = tf.nn.dropout(histroy_item_embeddings ,rate=args.dropout)
             histroy_item_embeddings *= tf.reshape(mask, (-1, self.max_len, 1))
 
             mask = tf.reshape(mask, [-1,  self.max_len])
@@ -241,26 +240,27 @@ class DNN(Model):
             histroy_item_embeddings = tf.reshape(histroy_item_embeddings, [-1, self.max_len, self.embedding_dim])
             self.histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
 
-            # use vqvae
-            if args.vqvae:
+            if args.meta_user:
 
-                x_meta,_ = self.get_quantized(histroy_item_embeddings, self.item_book)
-
-                vqvae_item_embeddings_mean, vq_x, x_encode, x_decode,  self.vq_loss = self.vqvae(histroy_item_embeddings, self.user_book, mask)
+                vqvae_x, x_encode, x_decode, self.vqvae_loss = self.vqvae(histroy_item_embeddings, self.user_book, mask)
                 loss += self.vq_loss
 
-                x_encode_meta,_ = self.encoder(x_meta)
-                x_encode_meta = tf.layers.max_pooling2d(x_encode_meta,pool_size=(1,2),strides=1)
-                
                 x_encode = tf.layers.max_pooling2d(x_encode,pool_size=(1,2),strides=1)
                 x_decode = tf.layers.max_pooling2d(x_decode,pool_size=(1,2),strides=1)
 
                 x_encode  = tf.reshape(x_encode, [self.batch_size, self.code_book_dim])
                 x_decode  = tf.reshape(x_decode, [self.batch_size, self.code_book_dim])
-                x_encode_meta  = tf.reshape(x_encode_meta, [self.batch_size, self.code_book_dim])
-                histroy_item_embeddings_mean = tf.concat([x_encode, x_decode, x_encode_meta], axis=-1)
 
-                if args.ISCS:
+                histroy_item_embeddings_mean = tf.concat([x_encode, x_decode], axis=-1)
+
+                if args.meta_item:
+                    x_meta,_ = self.get_quantized(histroy_item_embeddings, self.item_book)
+                    x_encode_meta,_ = self.encoder(x_meta)
+                    x_encode_meta = tf.layers.max_pooling2d(x_encode_meta,pool_size=(1,2),strides=1)
+                    x_encode_meta  = tf.reshape(x_encode_meta, [self.batch_size, self.code_book_dim])
+                    histroy_item_embeddings_mean = tf.concat([x_encode, x_decode, x_encode_meta], axis=-1)
+                
+                if args.front_door:
 
                     X = tf.tile(x_encode, [1, self.embedding_num])
                     X = tf.reshape(X, [-1, self.code_book_dim])
@@ -274,28 +274,30 @@ class DNN(Model):
                     p = 1/p # bs, code_book_num
                     IS = p/tf.reduce_sum(p, axis=1, keepdims=True)
 
-                    # center = tf.reduce_mean(x_encode, axis=0, keepdims=True)
                     dist = self.l2(x_encode, x_encode, dim=self.code_book_dim)
                     dist = tf.reduce_sum(dist, axis=1, keepdims=True)
                     p = tf.nn.softmax(dist, axis=0) + 1e-12
                     p = tf.reshape(1-p, [1, -1]) # 1, bs
                     CS = p/tf.reduce_sum(p, axis=1, keepdims=True)
 
-                    # bs, code_book_num
                     front_door = tf.reshape(CS@concat_mean, [self.embedding_num, self.embedding_dim])
                     front_door = IS @ front_door
 
-                    a = tf.losses.mean_squared_error(front_door, next_item_embeddings)
-                    # b = self.sampled_softmax_loss(front_door, self.item_ids)
-                    self.front_loss = a
-                    loss += self.front_loss
+                    self.front_door_loss = tf.losses.mean_squared_error(front_door, next_item_embeddings)
+                    loss += self.front_door_loss
 
                     histroy_item_embeddings_mean = tf.concat([x_encode, x_decode, x_encode_meta], axis=-1)
 
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=1)
 
             else:
-                histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-9)
+                histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1))
+
+                if args.meta_item:
+                    x_meta, _ = self.get_quantized(histroy_item_embeddings, self.item_book)
+                    x_meta_mean = tf.reduce_sum(x_meta, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1))
+                    histroy_item_embeddings_mean = tf.concat([histroy_item_embeddings_mean, x_meta_mean], -1)
+
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=0)
 
             # get loss
@@ -336,8 +338,8 @@ class DNN(Model):
             self.batch_size:inputs[7]
         }
 
-        loss, vq_loss, code_book, _ , upperboundary, lowerboundary, stddev = sess.run(
-            [self.loss, self.vq_loss, self.item_embedding_table, self.opt, self.upperboundary_tf, self.lowerboundary_tf, self.stddev_tf],
+        loss, vqvae_loss, front_door_loss, _ , upperboundary, lowerboundary, stddev = sess.run(
+            [self.loss, self.vqvae_loss, self.front_door_loss, self.opt, self.upperboundary_tf, self.lowerboundary_tf, self.stddev_tf],
             feed_dict=feed_dict
         )
 
@@ -345,4 +347,4 @@ class DNN(Model):
         self.lowerboundary = min(lowerboundary, self.lowerboundary)
         self.stddev = max(stddev, self.stddev)
 
-        return loss, vq_loss, code_book
+        return loss, vqvae_loss, front_door_loss

@@ -13,7 +13,6 @@ def get_data_info(args):
         domain = ['ml','nf']
         data_info['domain'] = domain[args.domain_index]
         data_info['item_count'] = 5569+10
-        data_info['user_count'] = 14630
         data_info['max_len'] = 20
         data_info['test_iter'] = 500
 

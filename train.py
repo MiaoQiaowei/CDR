@@ -86,7 +86,7 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             args.lr, args.dropout, len(user_ids)
         ]
 
-        loss, vq_loss, code_book_ = model.run(sess, inputs)
+        loss, vqvae_loss, front_door_loss = model.run(sess, inputs)
 
         manager.add(loss)
 
@@ -97,8 +97,9 @@ def train(train_loader, val_loader, model, sess, manager:Manager, args):
             metric = eval(val_loader, model, sess, manager, args, name='val')
             
             metric['train_loss'] = manager.avg()
-            metric['ce_loss'] = 0
-            metric['vqvae_loss'] = vq_loss
+            metric['ce_loss'] = loss-vqvae_loss-front_door_loss
+            metric['vqvae_loss'] = vqvae_loss
+            metric['front_door_loss'] = front_door_loss
             manager.info['lowerboundary'] = float(model.lowerboundary)
             manager.info['upperboundary'] = float(model.upperboundary)
             manager.info['stddev'] = float(model.stddev)
@@ -154,28 +155,24 @@ def get_args():
 
     # model
     parser.add_argument('--model', type=str,default='DNN')
-    parser.add_argument('--dropout', type=float, default=0.3)
     parser.add_argument('--embedding_dim', type=int, default=64)
     parser.add_argument('--embedding_num', type=int, default=1024)
-    # parser.add_argument('--code_book_dim', type=int, default=8)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--ISCS', action='store_true', default=False)
-    parser.add_argument('--CATT_layers',type=int, default=1)
-    parser.add_argument('--vqvae', action='store_true', default=False)
-    # parser.add_argument('--self_attn', action='store_true', default=False)
+    parser.add_argument('--dropout', type=float, default=0.0)
     parser.add_argument('--upper_boundary', type=float, default=1)
     parser.add_argument('--lower_boundary', type=float, default=-1)
     parser.add_argument('--stddev', type=float, default=0.1)
+    parser.add_argument('--meta_user', action='store_true', default=False)
+    parser.add_argument('--meta_item', action='store_true', default=False)
+    parser.add_argument('--front_door', action='store_true', default=False)
 
     # run
     parser.add_argument('--exp_name', type=str, default='test')
     parser.add_argument('--only_test_last_one', action='store_true', default=False)
     parser.add_argument('--patience', type=int, default=3)
     parser.add_argument('--seed', type=int, default=19)
-    parser.add_argument('--coef', type=float,default=0.0)
     parser.add_argument('--topN', type=int, default=50)
     parser.add_argument('--max_step', type=int, default=300000)
-    parser.add_argument('--CR', action='store_true', default=False, help='Cross Domain')
     args = parser.parse_args()
 
     return args
@@ -200,7 +197,6 @@ def main(_):
     test_path = osp.join(data_info['path'], 'test.json')
 
     args.item_count = data_info['item_count']
-    args.user_count = data_info['user_count']
     args.max_len = data_info['max_len']
     args.test_iter = data_info['test_iter']
 
@@ -218,7 +214,6 @@ def main(_):
     gpu_options = tf.GPUOptions(allow_growth=True)
 
     with tf.Session(config=tf.ConfigProto(gpu_options=gpu_options)) as sess:
-        # from tensorflow.python import debug as tf_debug
 
         train_loader = DataIterator(
             data_path=train_path,
@@ -226,8 +221,7 @@ def main(_):
             max_len=args.max_len,
             domain_num=args.domain_num,
             domain_index=args.domain_index,
-            is_train=True,
-            use_vqvae=args.vqvae
+            is_train=True
         )
 
         val_loader = DataIterator(
@@ -236,8 +230,7 @@ def main(_):
             max_len=args.max_len,
             domain_num=args.domain_num,
             domain_index=args.domain_index,
-            is_train=False,
-            use_vqvae=args.vqvae
+            is_train=False
         )
 
         test_loader = DataIterator(
@@ -246,8 +239,7 @@ def main(_):
             max_len=args.max_len,
             domain_num=args.domain_num,
             domain_index=args.domain_index,
-            is_train=False,
-            use_vqvae=args.vqvae
+            is_train=False
         )
 
         # init
