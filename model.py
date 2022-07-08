@@ -33,7 +33,7 @@ class Model:
 
         # code book
         with tf.name_scope('code_book_vars'):
-            self.item_book = tf.get_variable("item_book", [self.embedding_num, self.code_book_dim], trainable=True,
+            self.item_book = tf.get_variable("item_book", [self.embedding_num, self.embedding_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=1, seed=None, dtype=tf.float32))
             self.user_book = tf.get_variable("user_book", [self.embedding_num, self.code_book_dim], trainable=True,
                                             initializer=tf.random_normal_initializer(mean=0.0, stddev=1, seed=None, dtype=tf.float32))
@@ -116,10 +116,10 @@ class Model:
             x_ = tf.reshape(x, [-1, self.embedding_dim])
             
             x_encode,var_encoder = self.encoder(x)
-            x_decode, encodings = self.get_quantized(x_encode, code_book)
+            x_decode, encodings = self.get_quantized(x_encode, code_book, self.code_book_dim)
             vqvae_x_,var_decoder = self.decoder(x_encode + tf.stop_gradient(x_decode-x_encode))
 
-            vqvae_x = tf.reshape(vqvae_x, x_shape)
+            vqvae_x = tf.reshape(vqvae_x_, x_shape)
 
         recon = tf.losses.mean_squared_error(x, vqvae_x)
         vq = tf.losses.mean_squared_error(x_decode,tf.stop_gradient(x_encode))
@@ -172,9 +172,9 @@ class Model:
 
         return loss
     
-    def get_quantized(self, x, code_book):
+    def get_quantized(self, x, code_book, dim):
         input_shape = tf.shape(x)
-        flattened = tf.reshape(x, [-1, self.code_book_dim])
+        flattened = tf.reshape(x, [-1, dim])
         distances = (
                 tf.reduce_sum(flattened ** 2, axis=1, keepdims=True)
                 + tf.reduce_sum(code_book ** 2, axis=1)
@@ -242,8 +242,8 @@ class DNN(Model):
 
             if args.meta_user:
 
-                vqvae_x, x_encode, x_decode, self.vqvae_loss = self.vqvae(histroy_item_embeddings, self.user_book, mask)
-                loss += self.vq_loss
+                vqvae_x, x_encode, x_decode, self.vqvae_loss = self.vqvae(histroy_item_embeddings, self.user_book)
+                loss += self.vqvae_loss
 
                 x_encode = tf.layers.max_pooling2d(x_encode,pool_size=(1,2),strides=1)
                 x_decode = tf.layers.max_pooling2d(x_decode,pool_size=(1,2),strides=1)
@@ -254,7 +254,7 @@ class DNN(Model):
                 histroy_item_embeddings_mean = tf.concat([x_encode, x_decode], axis=-1)
 
                 if args.meta_item:
-                    x_meta,_ = self.get_quantized(histroy_item_embeddings, self.item_book)
+                    x_meta,_ = self.get_quantized(histroy_item_embeddings, self.item_book, dim=self.embedding_num)
                     x_encode_meta,_ = self.encoder(x_meta)
                     x_encode_meta = tf.layers.max_pooling2d(x_encode_meta,pool_size=(1,2),strides=1)
                     x_encode_meta  = tf.reshape(x_encode_meta, [self.batch_size, self.code_book_dim])
@@ -291,11 +291,11 @@ class DNN(Model):
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=1)
 
             else:
-                histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1))
+                histroy_item_embeddings_mean = tf.reduce_sum(histroy_item_embeddings, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-12)
 
                 if args.meta_item:
-                    x_meta, _ = self.get_quantized(histroy_item_embeddings, self.item_book)
-                    x_meta_mean = tf.reduce_sum(x_meta, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1))
+                    x_meta, _ = self.get_quantized(histroy_item_embeddings, self.item_book, self.embedding_num)
+                    x_meta_mean = tf.reduce_sum(x_meta, 1) / (tf.reduce_sum(tf.cast(masks, dtype=tf.float32), 1) + 1e-12)
                     histroy_item_embeddings_mean = tf.concat([histroy_item_embeddings_mean, x_meta_mean], -1)
 
                 self.histroy_item_embeddings_mean = self.mixer(histroy_item_embeddings_mean, out_dim=self.embedding_dim, name=0)
